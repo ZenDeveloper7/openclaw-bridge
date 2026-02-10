@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw Control Board</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦞</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/style.css?v=6">
+</head>
+<body>
+  <div id="app">
+    <nav id="sidebar">
+      <div class="sidebar-top">
+        <div class="logo">
+          <span class="logo-icon">🦞</span>
+          <h1 class="logo-text">OpenClaw</h1>
+        </div>
+        <button id="btn-collapse" class="collapse-btn" title="Collapse sidebar">◀</button>
+      </div>
+      <div class="nav-section">
+        <button class="nav-btn active" data-view="dashboard">📊 Dashboard</button>
+        <button class="nav-btn" data-view="kanban">📋 Kanban</button>
+        <button class="nav-btn" data-view="agents">🤖 Agents</button>
+        <button class="nav-btn" data-view="calendar">📅 Calendar</button>
+        <button class="nav-btn" data-view="files">📁 Files</button>
+        <button class="nav-btn" data-view="activity">📊 Activity</button>
+        <button class="nav-btn" data-view="security">🛡️ Security</button>
+      </div>
+      <div class="nav-footer">
+        <span id="version-badge">v...</span>
+      </div>
+    </nav>
+
+    <main id="content">
+
+      <!-- Dashboard View -->
+      <div id="view-dashboard" class="view active">
+        <div class="view-header">
+          <h2>Control Board</h2>
+          <button id="btn-refresh-dash" class="btn btn-secondary">🔄 Refresh</button>
+        </div>
+        <div id="dashboard-stats" class="dashboard-grid"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+          <div>
+            <h3 style="font-size:14px; font-weight:700; margin-bottom:12px; color:var(--text-dim);">AGENTS</h3>
+            <div id="dash-agents" class="agent-grid"></div>
+          </div>
+          <div>
+            <h3 style="font-size:14px; font-weight:700; margin-bottom:12px; color:var(--text-dim);">IN PROGRESS</h3>
+            <div id="dash-tasks"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kanban View -->
+      <div id="view-kanban" class="view">
+        <div class="view-header">
+          <h2>Task Board</h2>
+          <div class="editor-actions">
+            <button id="btn-add-task" class="btn btn-primary">+ New Task</button>
+          </div>
+        </div>
+        <div class="kanban-wrapper">
+          <div id="kanban-board" class="kanban-board"></div>
+        </div>
+      </div>
+
+      <!-- Agents View -->
+      <div id="view-agents" class="view">
+        <div class="view-header">
+          <h2>Agent Sessions</h2>
+          <button id="btn-refresh-agents" class="btn btn-secondary">🔄 Refresh</button>
+        </div>
+        <div id="agent-list" class="agent-grid"></div>
+      </div>
+
+      <!-- Files View -->
+      <div id="view-files" class="view">
+        <div class="view-header">
+          <h2>File Explorer</h2>
+          <div id="breadcrumbs" class="breadcrumbs">
+            <span class="crumb" data-path="">~/.openclaw</span>
+          </div>
+        </div>
+        <div id="file-list" class="file-list"></div>
+      </div>
+
+      <!-- Calendar View -->
+      <div id="view-calendar" class="view">
+        <div class="view-header">
+          <h2>📅 Scheduled Jobs</h2>
+          <div class="editor-actions">
+            <div class="cal-view-toggle">
+              <button id="btn-cal-week" class="btn btn-primary cal-toggle-btn active" title="Week view">📅 Week</button>
+              <button id="btn-cal-timeline" class="btn btn-secondary cal-toggle-btn" title="Timeline view">🕐 Timeline</button>
+            </div>
+            <button id="btn-cal-prev" class="btn btn-secondary">← Prev</button>
+            <span id="cal-week-label" class="pagination-info"></span>
+            <button id="btn-cal-next" class="btn btn-secondary">Next →</button>
+            <button id="btn-cal-today" class="btn btn-primary">Today</button>
+          </div>
+        </div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+        <div id="cal-job-list" class="cal-job-list"></div>
+      </div>
+
+      <!-- Activity View -->
+      <div id="view-activity" class="view">
+        <div class="view-header">
+          <h2>📊 Activity Feed</h2>
+          <div class="editor-actions">
+            <select id="activity-agent-filter" class="filter-select">
+              <option value="">All Agents</option>
+            </select>
+            <select id="activity-action-filter" class="filter-select">
+              <option value="">All Actions</option>
+              <option value="file_write">File Write</option>
+              <option value="task_create">Task Create</option>
+              <option value="task_move">Task Move</option>
+              <option value="agent_run_start">Agent Run</option>
+              <option value="tool_start">Tool Call</option>
+              <option value="message">Message</option>
+              <option value="search">Search</option>
+            </select>
+            <button id="btn-refresh-activity" class="btn btn-secondary">🔄 Refresh</button>
+          </div>
+        </div>
+        <div id="activity-timeline" class="activity-timeline">
+          <div class="loading">Loading activity...</div>
+        </div>
+      </div>
+
+      <!-- Security View -->
+      <div id="view-security" class="view">
+        <div class="view-header">
+          <h2>🛡️ Security Panel</h2>
+          <button id="btn-refresh-security" class="btn btn-secondary">🔄 Refresh</button>
+        </div>
+        <div id="security-threats" class="security-threats"></div>
+        <div class="security-grid">
+          <div class="security-section">
+            <h3 class="security-section-title">🌐 Tailscale</h3>
+            <div id="security-tailscale" class="security-card-body"><div class="loading">Loading...</div></div>
+          </div>
+          <div class="security-section">
+            <h3 class="security-section-title">🔑 SSH Activity</h3>
+            <div id="security-ssh" class="security-card-body"><div class="loading">Loading...</div></div>
+          </div>
+        </div>
+        <div class="security-section" style="margin-top:14px;">
+          <h3 class="security-section-title">📋 OpenClaw Auth Events</h3>
+          <div id="security-auth" class="security-card-body"><div class="loading">Loading...</div></div>
+        </div>
+      </div>
+
+      <!-- File Editor -->
+      <div id="view-editor" class="view">
+        <div class="view-header">
+          <h2 id="editor-title">Editor</h2>
+          <div class="editor-actions">
+            <button id="btn-toggle-preview" class="btn btn-secondary" style="display:none;">👁️ Preview</button>
+            <button id="btn-save" class="btn btn-primary">💾 Save</button>
+            <button id="btn-close-editor" class="btn btn-secondary">✕ Close</button>
+          </div>
+        </div>
+        <div id="editor-container">
+          <textarea id="editor" spellcheck="false"></textarea>
+        </div>
+        <div id="markdown-preview" class="markdown-body" style="display:none;"></div>
+        <div id="editor-status" class="status-bar"></div>
+      </div>
+
+      <!-- JSONL Viewer -->
+      <div id="view-jsonl" class="view">
+        <div class="view-header">
+          <h2 id="jsonl-title">JSONL Viewer</h2>
+          <div class="editor-actions">
+            <button id="btn-jsonl-prev" class="btn btn-secondary">← Prev</button>
+            <span id="jsonl-pagination" class="pagination-info"></span>
+            <button id="btn-jsonl-next" class="btn btn-secondary">Next →</button>
+            <button id="btn-jsonl-last" class="btn btn-secondary">Last ⏭</button>
+            <button id="btn-jsonl-raw" class="btn btn-secondary">📝 Raw</button>
+            <button id="btn-close-jsonl" class="btn btn-secondary">✕ Close</button>
+          </div>
+        </div>
+        <div id="jsonl-filters" class="jsonl-filters">
+          <input type="text" id="jsonl-search" placeholder="Filter lines..." class="filter-input">
+          <select id="jsonl-role-filter" class="filter-select">
+            <option value="">All roles</option>
+            <option value="user">User</option>
+            <option value="assistant">Assistant</option>
+            <option value="system">System</option>
+            <option value="tool">Tool</option>
+          </select>
+        </div>
+        <div id="jsonl-lines" class="jsonl-lines"></div>
+        <div id="jsonl-edit-modal" class="modal hidden">
+          <div class="modal-content wide">
+            <div class="modal-header">
+              <h3 id="jsonl-edit-title">Edit Line</h3>
+              <button id="btn-jsonl-edit-close" class="btn btn-ghost">✕</button>
+            </div>
+            <textarea id="jsonl-edit-area" spellcheck="false"></textarea>
+            <div class="modal-actions">
+              <button id="btn-jsonl-edit-format" class="btn btn-secondary">🎨 Format</button>
+              <button id="btn-jsonl-edit-save" class="btn btn-primary">💾 Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Command Palette -->
+      <div id="command-palette" class="modal hidden">
+        <div class="palette-content">
+          <input id="palette-input" class="palette-input" type="text" placeholder="Search commands..." autocomplete="off" spellcheck="false">
+          <div id="palette-results" class="palette-results"></div>
+        </div>
+      </div>
+
+      <!-- Task Modal -->
+      <div id="task-modal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="task-modal-title">New Task</h3>
+            <button id="btn-task-close" class="btn btn-ghost">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="form-label">Title</label>
+              <input id="task-title" class="form-input" type="text" placeholder="What needs to be done?">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea id="task-desc" class="form-textarea" placeholder="Details, notes, links..."></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Assign to</label>
+                <select id="task-agent" class="form-select">
+                  <option value="">Unassigned</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Priority</label>
+                <select id="task-priority" class="form-select">
+                  <option value="low">Low</option>
+                  <option value="normal" selected>Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Status</label>
+                <select id="task-status" class="form-select">
+                  <option value="backlog">Backlog</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="review">Review</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tags (comma separated)</label>
+                <input id="task-tags" class="form-input" type="text" placeholder="coding, ui, bug">
+              </div>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button id="btn-task-delete" class="btn btn-secondary" style="color:var(--red); margin-right:auto; display:none;">🗑️ Delete</button>
+            <button id="btn-task-cancel" class="btn btn-secondary">Cancel</button>
+            <button id="btn-task-save" class="btn btn-primary">Save Task</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Dialog -->
+      <div id="agent-dialog" class="modal hidden">
+        <div class="modal-content agent-dialog-content">
+          <div class="modal-header">
+            <h3 id="agent-dialog-title">Agent</h3>
+            <button id="btn-agent-dialog-close" class="btn btn-ghost">✕</button>
+          </div>
+          <div class="agent-dialog-options">
+            <button id="btn-agent-state" class="agent-dialog-btn">
+              <span class="agent-dialog-icon">📊</span>
+              <span class="agent-dialog-label">State</span>
+              <span class="agent-dialog-hint">View agent session state</span>
+            </button>
+            <button id="btn-agent-workspace" class="agent-dialog-btn">
+              <span class="agent-dialog-icon">📁</span>
+              <span class="agent-dialog-label">Workspace</span>
+              <span class="agent-dialog-hint">Browse agent workspace files</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+  <script src="src/app.js?v=6"></script>
+</body>
+</html>

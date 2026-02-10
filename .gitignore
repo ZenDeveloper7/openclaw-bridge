@@ -1,0 +1,12 @@
+__pycache__/
+.venv/
+*.pyc
+*.pyo
+*.bak
+.DS_Store
+node_modules/
+*.egg-info/
+.env
+kanban.json
+activity-feed.jsonl
+openclaw-dashboard.service
