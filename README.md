@@ -2,6 +2,11 @@
 
 A web-based control board for the [OpenClaw](https://github.com/nicobailon/openclaw) AI gateway.
 
+**✨ No database required** — all data stored locally in JSON files  
+**🔒 Local-first architecture** — works entirely offline  
+**🌐 Accessible via Tailscale** — access from anywhere securely  
+**📦 Zero dependencies** — beyond OpenClaw itself
+
 ![Screenshot](https://via.placeholder.com/1200x600?text=OpenClaw+Dashboard+Screenshot)
 
 ## Features

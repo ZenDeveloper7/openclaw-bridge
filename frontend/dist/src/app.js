@@ -7,6 +7,295 @@ const API = window.location.port === '5173'
 let currentPath = '';
 let currentEditPath = '';
 
+// ── Dashboard Config ───────────────────────────────────────────────
+var dashboardConfig = { boardName: 'Control Board', icon: '🦞', theme: 'default', accentColor: null };
+
+async function loadDashboardConfig() {
+  try {
+    var res = await fetch(API + '/dashboard/config');
+    if (res.ok) {
+      dashboardConfig = await res.json();
+      applyDashboardConfig();
+    }
+  } catch (e) {
+    console.log('Using default dashboard config');
+  }
+}
+
+function applyDashboardConfig() {
+  // Update page title
+  document.title = dashboardConfig.boardName || 'OpenClaw Control Board';
+  // Update header
+  var boardTitle = document.getElementById('board-title');
+  if (boardTitle) boardTitle.textContent = dashboardConfig.boardName || 'Control Board';
+  // Update favicon if icon is provided
+  if (dashboardConfig.icon) {
+    var favicon = document.querySelector('link[rel="icon"]');
+    if (favicon) {
+      favicon.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>" + dashboardConfig.icon + "</text></svg>";
+    }
+    // Update logo
+    var logoIcon = document.querySelector('.logo-icon');
+    if (logoIcon) logoIcon.textContent = dashboardConfig.icon;
+  }
+  // Apply theme
+  applyTheme(dashboardConfig.theme);
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  // Update theme button states
+  document.querySelectorAll('.theme-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.theme === theme);
+  });
+}
+
+// ── Easter Eggs ───────────────────────────────────────────────────────
+var easterEggs = (function() {
+  var konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+  var konamiIndex = 0;
+  var logoClickSequence = [];
+  var logoClicks = 0;
+  var matrixMode = false;
+  var clickTimer = null;
+  
+  var secretMessages = [
+    '🦞 You found a secret!',
+    'The lobsters are watching...',
+    'Did you know? Atlas holds up the sky!',
+    '🚀 Productivity mode: ACTIVATED',
+    '🎉 You are now 10% cooler',
+    '⚡ Ka-chow!',
+    '🔮 The future looks bright',
+    '💡 Fun fact: Dolphins are smarter than you think',
+    '🎮 Konami code hint: ↑↑↓↓←→←→BA',
+    '🌟 You have discovered hidden knowledge',
+    '🐙 tentacles? No, just octopus vibes',
+  ];
+  
+  var matrixPhrases = [
+    'Wake up, Neo...',
+    'The Matrix has you...',
+    'Follow the white rabbit.',
+    'There is no spoon.',
+    'Free your mind.',
+    'Welcome to the real world.',
+  ];
+  
+  // Konami code detection
+  document.addEventListener('keydown', function(e) {
+    if (e.key === konamiCode[konamiIndex]) {
+      konamiIndex++;
+      if (konamiIndex === konamiCode.length) {
+        activateMatrixMode();
+        konamiIndex = 0;
+      }
+    } else {
+      konamiIndex = 0;
+    }
+  });
+  
+  // Logo click sequence
+  var logo = document.querySelector('.logo');
+  if (logo) {
+    logo.style.cursor = 'pointer';
+    logo.title = 'Click me...';
+    logo.addEventListener('click', function() {
+      logoClicks++;
+      clearTimeout(clickTimer);
+      logoClickSequence.push(Date.now());
+      
+      // Keep only last 5 clicks
+      if (logoClickSequence.length > 5) logoClickSequence.shift();
+      
+      // Check for rapid clicks
+      if (logoClicks === 7) {
+        toast('🎮 7 clicks! You found a hidden feature!', 'success');
+        logoClicks = 0;
+      }
+      
+      clickTimer = setTimeout(function() {
+        logoClicks = 0;
+      }, 2000);
+    });
+  }
+  
+  // Random secret messages in console
+  console.log('%c🛠️ OpenClaw Control Board', 'font-size: 24px; font-weight: bold; color: #f97316;');
+  console.log('%cSecret commands:', 'font-weight: bold; color: #22c55e;');
+  console.log('%c↑↑↓↓←→←→BA - Activate Matrix Mode', 'color: #88c0d0;');
+  console.log('%cClick the logo 7 times rapidly - ???', 'color: #88c0d0;');
+  console.log('%cType "easterEggs.revealAll()" in console', 'color: #88c0d0;');
+  
+  // Secret console function
+  window.easterEggs = {
+    revealAll: function() {
+      console.log('%c🎉 EASTER EGGS REVEALED!', 'font-size: 20px; color: #f97316;');
+      console.log('1. Konami code: ↑↑↓↓←→←→BA → Matrix Mode');
+      console.log('2. Click logo 7 times → Secret toast');
+      console.log('3. Theme: Matrix → Hacker vibes');
+      console.log('4. Hidden in plain sight...');
+      toast('🎉 Easter eggs revealed in console!', 'success');
+    },
+    matrix: function() {
+      activateMatrixMode();
+    },
+    joke: function() {
+      var jokes = [
+        'Why did the lobster go to therapy? Because it had shell issues! 🦞',
+        'What do you call a computer that sings? A-Dell! 🎤',
+        'Why do programmers prefer dark mode? Because light attracts bugs! 🐛',
+      ];
+      toast(jokes[Math.floor(Math.random() * jokes.length)], 'success');
+    },
+  };
+  
+  // Random toast on page load (10% chance)
+  if (Math.random() < 0.1) {
+    setTimeout(function() {
+      toast(secretMessages[Math.floor(Math.random() * secretMessages.length)], 'success');
+    }, 3000);
+  }
+  
+  // 404 page easter egg
+  var originalTitle = document.title;
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      document.title = '😢 Come back...';
+    } else {
+      document.title = originalTitle;
+    }
+  });
+  
+  function activateMatrixMode() {
+    if (matrixMode) return;
+    matrixMode = true;
+    
+    toast('🟢 Matrix Mode Activated...', 'success');
+    document.body.classList.add('matrix-mode');
+    
+    // Random Matrix phrases in console
+    console.log('%c� Matrix Mode Active 🌟', 'font-size: 16px; color: #00ff41; font-family: monospace;');
+    var phraseInterval = setInterval(function() {
+      var phrase = matrixPhrases[Math.floor(Math.random() * matrixPhrases.length)];
+      console.log('%c' + phrase, 'color: #00ff41; font-family: monospace; font-size: 12px;');
+    }, 3000);
+    
+    // Store in session
+    sessionStorage.setItem('matrixMode', 'true');
+    
+    // Auto-disable after 2 minutes
+    setTimeout(function() {
+      matrixMode = false;
+      document.body.classList.remove('matrix-mode');
+      toast('🔴 Matrix Mode ended', 'success');
+      clearInterval(phraseInterval);
+      sessionStorage.removeItem('matrixMode');
+    }, 120000);
+  }
+  
+  // Check for saved matrix mode
+  if (sessionStorage.getItem('matrixMode') === 'true') {
+    matrixMode = true;
+    document.body.classList.add('matrix-mode');
+  }
+})();
+
+function applyCustomAccent(color) {
+  if (color && color !== '#f97316') {
+    document.documentElement.style.setProperty('--accent', color);
+    document.documentElement.style.setProperty('--accent-hover', adjustBrightness(color, 10));
+    document.documentElement.style.setProperty('--accent-dim', hexToRgba(color, 0.15));
+  } else {
+    // Reset to theme default
+    var defaultAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#f97316';
+    document.documentElement.style.setProperty('--accent', defaultAccent);
+    document.documentElement.style.setProperty('--accent-hover', adjustBrightness(defaultAccent, 10));
+    document.documentElement.style.setProperty('--accent-dim', hexToRgba(defaultAccent, 0.15));
+  }
+}
+
+function adjustBrightness(hex, percent) {
+  var num = parseInt(hex.replace('#', ''), 16);
+  var amt = Math.round(2.55 * percent);
+  var R = (num >> 16) + amt;
+  var G = (num >> 8 & 0x00FF) + amt;
+  var B = (num & 0x0000FF) + amt;
+  return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
+}
+
+function hexToRgba(hex, alpha) {
+  var r = parseInt(hex.slice(1, 3), 16);
+  var g = parseInt(hex.slice(3, 5), 16);
+  var b = parseInt(hex.slice(5, 7), 16);
+  return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+}
+
+// Theme button handlers
+document.querySelectorAll('.theme-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var theme = this.dataset.theme;
+    applyTheme(theme);
+    dashboardConfig.theme = theme;
+    dashboardConfig.accentColor = null;
+    document.getElementById('settings-accent-color').value = '#f97316';
+  });
+});
+
+// Custom accent color handler
+document.getElementById('settings-accent-color').addEventListener('input', function(e) {
+  var color = e.target.value;
+  applyCustomAccent(color);
+});
+
+// Settings modal handlers
+document.getElementById('btn-settings').addEventListener('click', function() {
+  document.getElementById('settings-board-name').value = dashboardConfig.boardName || '';
+  document.getElementById('settings-board-icon').value = dashboardConfig.icon || '🦞';
+  // Set theme buttons
+  document.querySelectorAll('.theme-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.theme === dashboardConfig.theme);
+  });
+  document.getElementById('settings-accent-color').value = dashboardConfig.accentColor || '#f97316';
+  document.getElementById('settings-modal').classList.remove('hidden');
+});
+
+document.getElementById('btn-settings-close').addEventListener('click', closeSettingsModal);
+document.getElementById('btn-settings-cancel').addEventListener('click', closeSettingsModal);
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+
+document.getElementById('btn-settings-save').addEventListener('click', async function() {
+  var boardName = document.getElementById('settings-board-name').value.trim() || 'Control Board';
+  var icon = document.getElementById('settings-board-icon').value.trim() || '🦞';
+  var theme = dashboardConfig.theme;
+  var accentColor = document.getElementById('settings-accent-color').value;
+
+  try {
+    var res = await fetch(API + '/dashboard/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ boardName: boardName, icon: icon, theme: theme, accentColor: accentColor }),
+    });
+    if (res.ok) {
+      dashboardConfig = await res.json();
+      applyDashboardConfig();
+      toast('Settings saved!', 'success');
+      closeSettingsModal();
+    } else {
+      toast('Failed to save settings', 'error');
+    }
+  } catch (e) {
+    toast('Error: ' + e.message, 'error');
+  }
+});
+
+document.getElementById('settings-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSettingsModal();
+});
+
 // ── Dynamic Agent Registry ─────────────────────────────────────────
 var agentRegistry = []; // [{id, name, emoji}]
 
@@ -102,6 +391,15 @@ async function loadDashboard() {
     document.getElementById('dashboard-stats').innerHTML = '<div class="loading">Error loading stats</div>';
   }
 
+  // Load system health
+  try {
+    var res = await fetch(API + '/health');
+    var health = await res.json();
+    renderHealthMetrics(health);
+  } catch (e) {
+    document.getElementById('health-metrics').innerHTML = '<div class="loading">Unable to load health metrics</div>';
+  }
+
   // Load agents
   try {
     var res = await fetch(API + '/agents');
@@ -133,6 +431,100 @@ function dashCard(icon, value, label, color) {
     + '<div class="dash-value">' + esc(String(value)) + '</div>'
     + '<div class="dash-label">' + esc(label) + '</div>'
     + '</div></div>';
+}
+
+function renderHealthMetrics(health) {
+  // Update uptime
+  document.getElementById('health-uptime').textContent = 'Uptime: ' + (health.uptime || '--');
+  
+  // Build metrics HTML
+  var metrics = [];
+  
+  // Memory
+  var memClass = health.memory.percent > 80 ? 'critical' : health.memory.percent > 60 ? 'warning' : 'good';
+  metrics.push({
+    value: health.memory.percent + '%',
+    label: 'RAM',
+    icon: '🧠',
+    className: memClass
+  });
+  
+  // Disk
+  var diskClass = health.disk.percent > 80 ? 'critical' : health.disk.percent > 60 ? 'warning' : 'good';
+  metrics.push({
+    value: health.disk.percent + '%',
+    label: 'Disk',
+    icon: '💾',
+    className: diskClass
+  });
+  
+  // CPU Load
+  metrics.push({
+    value: health.loadAvg['1min'],
+    label: 'Load (1m)',
+    icon: '⚡',
+    className: 'info'
+  });
+  
+  // Gateway status
+  var gwClass = health.gatewayOnline ? 'good' : 'critical';
+  metrics.push({
+    value: health.gatewayOnline ? 'Online' : 'Offline',
+    label: 'Gateway',
+    icon: health.gatewayOnline ? '🟢' : '🔴',
+    className: gwClass
+  });
+  
+  // Process count
+  metrics.push({
+    value: health.processCount || '--',
+    label: 'Processes',
+    icon: '📊',
+    className: 'info'
+  });
+  
+  // Memory used/total
+  metrics.push({
+    value: health.memory.usedGB + ' / ' + health.memory.totalGB + ' GB',
+    label: 'Memory Used',
+    icon: '🧠',
+    className: 'info'
+  });
+  
+  var html = '';
+  for (var i = 0; i < metrics.length; i++) {
+    var m = metrics[i];
+    html += '<div class="health-metric ' + m.className + '">'
+      + '<div class="health-metric-value">' + esc(String(m.value)) + '</div>'
+      + '<div class="health-metric-label">' + esc(m.label) + '</div>'
+      + '</div>';
+  }
+  
+  document.getElementById('health-metrics').innerHTML = html;
+  
+  // Update progress bars
+  var memPercent = health.memory.percent || 0;
+  var memBar = document.getElementById('mem-bar');
+  var memText = document.getElementById('mem-percent');
+  memBar.style.width = memPercent + '%';
+  memBar.className = 'health-bar-fill ' + (memPercent > 80 ? 'critical' : memPercent > 60 ? 'warning' : 'good');
+  memText.textContent = memPercent + '% (' + health.memory.usedGB + ' / ' + health.memory.totalGB + ' GB)';
+  
+  var diskPercent = health.disk.percent || 0;
+  var diskBar = document.getElementById('disk-bar');
+  var diskText = document.getElementById('disk-percent');
+  diskBar.style.width = diskPercent + '%';
+  diskBar.className = 'health-bar-fill ' + (diskPercent > 80 ? 'critical' : diskPercent > 60 ? 'warning' : 'good');
+  diskText.textContent = diskPercent + '% (' + health.disk.usedGB + ' / ' + health.disk.totalGB + ' GB)';
+  
+  // Update load average chart
+  var maxLoad = Math.max(health.loadAvg['1min'], health.loadAvg['5min'], health.loadAvg['15min'], 1);
+  document.getElementById('load-1').style.height = Math.min((health.loadAvg['1min'] / maxLoad) * 100, 100) + '%';
+  document.getElementById('load-5').style.height = Math.min((health.loadAvg['5min'] / maxLoad) * 100, 100) + '%';
+  document.getElementById('load-15').style.height = Math.min((health.loadAvg['15min'] / maxLoad) * 100, 100) + '%';
+  document.getElementById('load-1-val').textContent = health.loadAvg['1min'];
+  document.getElementById('load-5-val').textContent = health.loadAvg['5min'];
+  document.getElementById('load-15-val').textContent = health.loadAvg['15min'];
 }
 
 document.getElementById('btn-refresh-dash').addEventListener('click', loadDashboard);
@@ -700,11 +1092,15 @@ function renderAgentCard(agent, compact) {
     + '<div class="agent-header">'
     + '<div class="agent-avatar">' + emoji + '</div>'
     + '<div><div class="agent-name">' + esc(agent.name) + '</div>'
-    + '<div class="agent-id">' + esc(agent.id) + '</div></div>'
+    + '<div class="agent-id">' + esc(agent.role || agent.id) + '</div></div>'
     + thinkingBadge
     + '</div>';
 
   if (!compact) {
+    if (agent.description) {
+      html += '<div class="agent-detail" style="grid-column: 1 / -1;"><span class="agent-detail-label">Role</span><span>' + esc(agent.role) + '</span></div>';
+      html += '<div class="agent-description">' + esc(agent.description) + '</div>';
+    }
     html += '<div class="agent-detail"><span class="agent-detail-label">Model</span><span>' + esc(modelStr) + '</span></div>';
     html += '<div class="agent-detail"><span class="agent-detail-label">Workspace</span><span>' + esc(agent.workspace || 'default') + '</span></div>';
     html += '<div class="agent-detail"><span class="agent-detail-label">Status</span><span>'
@@ -1805,9 +2201,71 @@ function toast(msg, type) {
   setTimeout(function() { el.remove(); }, 3000);
 }
 
+// ── Mobile Navigation ─────────────────────────────────────────────────
+
+(function() {
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebar-overlay');
+  var toggle = document.getElementById('mobile-nav-toggle');
+  
+  if (!sidebar || !overlay || !toggle) return;
+  
+  function openMobileMenu() {
+    sidebar.classList.add('mobile-open');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  
+  function closeMobileMenu() {
+    sidebar.classList.remove('mobile-open');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+  
+  toggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (sidebar.classList.contains('mobile-open')) {
+      closeMobileMenu();
+    } else {
+      openMobileMenu();
+    }
+  });
+  
+  overlay.addEventListener('click', closeMobileMenu);
+  
+  // Close menu when clicking nav buttons
+  var navBtns = sidebar.querySelectorAll('.nav-btn');
+  navBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      closeMobileMenu();
+    });
+  });
+  
+  // Close menu on escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && sidebar.classList.contains('mobile-open')) {
+      closeMobileMenu();
+    }
+  });
+  
+  // Hide toggle on desktop
+  function checkWidth() {
+    if (window.innerWidth > 700) {
+      closeMobileMenu();
+      toggle.style.display = 'none';
+    } else {
+      toggle.style.display = 'flex';
+    }
+  }
+  
+  window.addEventListener('resize', checkWidth);
+  checkWidth();
+})();
+
 // ── Init ───────────────────────────────────────────────────────────
 
 async function init() {
+  await loadDashboardConfig();
   await loadAgentRegistry();
   loadDashboard();
   try {

@@ -31,7 +31,15 @@ app.add_middleware(
 # ── Configuration (env vars with sensible defaults) ─────────────────
 OPENCLAW_DIR = Path(os.environ.get("OPENCLAW_DIR", Path.home() / ".openclaw"))
 OPENCLAW_CONFIG = OPENCLAW_DIR / "openclaw.json"
-KANBAN_FILE = OPENCLAW_DIR / "kanban.json"
+KANBAN_FILE = Path(__file__).parent.parent / "kanban.json"
+DASHBOARD_CONFIG_FILE = OPENCLAW_DIR / "dashboard-config.json"
+
+
+class DashboardConfig(BaseModel):
+    boardName: str = "Control Board"
+    icon: str = "🦞"
+    theme: str = "default"
+    accentColor: str = "#f97316"
 
 def _find_qmd() -> str | None:
     """Find the qmd binary via env var or PATH."""
@@ -349,6 +357,38 @@ async def get_config() -> dict:
     return {"raw": content, "parsed": parsed}
 
 
+# ── Dashboard Config ────────────────────────────────────────────────
+
+def _load_dashboard_config() -> dict:
+    """Load dashboard configuration from JSON file."""
+    if DASHBOARD_CONFIG_FILE.exists():
+        try:
+            return json.loads(DASHBOARD_CONFIG_FILE.read_text())
+        except (json.JSONDecodeError, PermissionError):
+            pass
+    return {"boardName": "Control Board", "icon": "🦞", "theme": "default", "accentColor": "#f97316"}
+
+
+def _save_dashboard_config(config: dict):
+    """Save dashboard configuration to JSON file."""
+    DASHBOARD_CONFIG_FILE.write_text(json.dumps(config, indent=2))
+
+
+@app.get("/api/dashboard/config")
+async def get_dashboard_config() -> dict:
+    """Get dashboard configuration (board name, icon, theme)."""
+    return _load_dashboard_config()
+
+
+@app.post("/api/dashboard/config")
+async def update_dashboard_config(config: DashboardConfig) -> dict:
+    """Update dashboard configuration."""
+    current = _load_dashboard_config()
+    updated = {**current, **config.model_dump(exclude_unset=True)}
+    _save_dashboard_config(updated)
+    return updated
+
+
 # ── Agent Sessions ──────────────────────────────────────────────────
 
 THINKING_THRESHOLD_MS = 60000
@@ -399,6 +439,17 @@ async def list_agents() -> list[dict]:
 
         is_thinking = (current_time - last_activity) < THINKING_THRESHOLD_MS
 
+        # Agent role and description mapping
+        agent_roles = {
+            "main": {"role": "Executive Assistant", "description": "Handles general tasks, messaging, scheduling, and daily operations."},
+            "atlas": {"role": "Coding Specialist", "description": "Writes, debugs, and refactors code. Git workflows and technical research."},
+            "jupiter": {"role": "Finance Specialist", "description": "Manages finances, budgets, investments, and monetary tasks."},
+        }
+        
+        agent_info = agent_roles.get(agent_id, {"role": "Agent", "description": "Custom agent for specialized tasks."})
+        role = agent.get("role") or agent_info["role"]
+        description = agent.get("description") or agent_info["description"]
+
         # Count tasks assigned to this agent from kanban
         task_count = 0
         active_task = None
@@ -416,6 +467,8 @@ async def list_agents() -> list[dict]:
         agents.append({
             "id": agent_id,
             "name": agent.get("name", agent_id),
+            "role": role,
+            "description": description,
             "model": agent.get("model", agents_config.get("defaults", {}).get("model", {}).get("primary", "unknown")),
             "workspace": Path(workspace).name if workspace else "default",
             "hasAgentDir": agent_dir.exists(),
@@ -614,6 +667,93 @@ async def get_stats() -> dict:
         "gatewayRunning": gateway_running,
         "tasks": task_summary,
     }
+
+
+# ── System Health Metrics ───────────────────────────────────────────
+
+@app.get("/api/health")
+async def get_system_health() -> dict:
+    """Get system health metrics: uptime, memory, disk, CPU load."""
+    import psutil
+    
+    # Uptime
+    try:
+        with open("/proc/uptime", "r") as f:
+            uptime_seconds = float(f.read().split()[0])
+            uptime_str = _format_uptime(uptime_seconds)
+    except Exception:
+        uptime_str = "Unknown"
+    
+    # Memory
+    try:
+        mem = psutil.virtual_memory()
+        memory_used = round(mem.used / (1024 * 1024 * 1024), 1)
+        memory_total = round(mem.total / (1024 * 1024 * 1024), 1)
+        memory_percent = mem.percent
+    except Exception:
+        memory_used = memory_total = memory_percent = 0
+    
+    # Disk usage for workspace
+    try:
+        disk = shutil.disk_usage(str(OPENCLAW_DIR))
+        disk_used = round(disk.used / (1024 * 1024 * 1024), 1)
+        disk_total = round(disk.total / (1024 * 1024 * 1024), 1)
+        disk_percent = round((disk.used / disk.total) * 100, 1) if disk.total > 0 else 0
+    except Exception:
+        disk_used = disk_total = disk_percent = 0
+    
+    # CPU load (1, 5, 15 min averages)
+    try:
+        load1, load5, load15 = os.getloadavg()
+    except Exception:
+        load1 = load5 = load15 = 0
+    
+    # Process count
+    try:
+        proc_count = len(psutil.pids())
+    except Exception:
+        proc_count = 0
+    
+    # Gateway status
+    gateway_url = get_gateway_url()
+    gateway_online = await _check_gateway_fast()
+    
+    return {
+        "uptime": uptime_str,
+        "uptimeSeconds": uptime_seconds if 'uptime_seconds' in dir() else 0,
+        "memory": {
+            "usedGB": memory_used,
+            "totalGB": memory_total,
+            "percent": memory_percent,
+        },
+        "disk": {
+            "usedGB": disk_used,
+            "totalGB": disk_total,
+            "percent": disk_percent,
+        },
+        "loadAvg": {
+            "1min": round(load1, 2),
+            "5min": round(load5, 2),
+            "15min": round(load15, 2),
+        },
+        "processCount": proc_count,
+        "gatewayOnline": gateway_online,
+        "gatewayUrl": gateway_url,
+    }
+
+
+def _format_uptime(seconds: float) -> str:
+    """Format seconds into human-readable uptime string."""
+    days = int(seconds // 86400)
+    hours = int((seconds % 86400) // 3600)
+    minutes = int((seconds % 3600) // 60)
+    
+    if days > 0:
+        return f"{days}d {hours}h"
+    elif hours > 0:
+        return f"{hours}h {minutes}m"
+    else:
+        return f"{minutes}m"
 
 
 # ── Network Monitor (Gateway Log Tailing) ──────────────────────────
@@ -1359,6 +1499,7 @@ async def _log_activity(action: str, target: str, agent: str = "", status: str =
 
 # ── Serve frontend ─────────────────────────────────────────────────
 
-frontend_dir = Path(__file__).parent.parent / "frontend" / "dist"
-if frontend_dir.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+frontend_dir = Path(__file__).parent.parent / "frontend"
+if (frontend_dir / "dist" / "index.html").exists():
+    frontend_dir = frontend_dir / "dist"
+app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
