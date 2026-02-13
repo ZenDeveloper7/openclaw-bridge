@@ -1,4 +1,6 @@
-# 🦞 OpenClaw Admin Dashboard
+# 🦞 OpenClaw B.R.I.D.G.E.
+
+**Brothers' Resource & Intelligence Dashboard for General Execution**
 
 A web-based control board for the [OpenClaw](https://github.com/nicobailon/openclaw) AI gateway.
 
@@ -19,13 +21,15 @@ A web-based control board for the [OpenClaw](https://github.com/nicobailon/openc
 - **🤖 Agent Management** — Monitor agent sessions, models, and workspaces
 - **🛡️ Security Panel** — Tailscale status, SSH logs, auth events, threat level
 - **🔍 Global Search** — Full-text search across workspace via [QMD](https://github.com/nicobailon/qmd)
+- **🎨 Themes** — Multiple themes (OLED, Light, Nord, Dracula, Matrix)
+- **🥚 Easter Eggs** — Konami code, hidden features!
 
 ## Quick Start
 
 ```bash
 # Clone
-git clone https://github.com/nicobailon/openclaw-dashboard.git
-cd openclaw-dashboard
+git clone https://github.com/ZenDeveloper7/openclaw-bridge.git
+cd openclaw-bridge
 
 # Set up Python environment
 python3 -m venv backend/.venv
