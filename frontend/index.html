@@ -30,7 +30,7 @@
         <button class="nav-btn" data-view="kanban">📋 Kanban</button>
         <button class="nav-btn" data-view="agents">🤖 Agents</button>
         <button class="nav-btn" data-view="calendar">📅 Calendar</button>
-        <button class="nav-btn" data-view="files">📁 Files</button>
+        <button class="nav-btn" data-view="files">⚙️ Config</button>
         <button class="nav-btn" data-view="activity">📊 Activity</button>
         <button class="nav-btn" data-view="security">🛡️ Security</button>
       </div>
@@ -144,12 +144,9 @@
       <!-- Files View -->
       <div id="view-files" class="view">
         <div class="view-header">
-          <h2>File Explorer</h2>
-          <div id="breadcrumbs" class="breadcrumbs">
-            <span class="crumb" data-path="">~/.openclaw</span>
-          </div>
+          <h2>⚙️ Configuration</h2>
         </div>
-        <div id="file-list" class="file-list"></div>
+        <div id="config-view" class="config-view"></div>
       </div>
 
       <!-- Calendar View -->
@@ -157,6 +154,9 @@
         <div class="view-header">
           <h2>📅 Scheduled Jobs</h2>
           <div class="editor-actions">
+            <select id="cal-filter-agent" class="filter-select">
+              <option value="">All Agents</option>
+            </select>
             <div class="cal-view-toggle">
               <button id="btn-cal-week" class="btn btn-primary cal-toggle-btn active" title="Week view">📅 Week</button>
               <button id="btn-cal-timeline" class="btn btn-secondary cal-toggle-btn" title="Timeline view">🕐 Timeline</button>

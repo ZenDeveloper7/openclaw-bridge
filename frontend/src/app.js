@@ -362,7 +362,7 @@ function showView(name) {
   if (name === 'kanban') loadKanban();
   if (name === 'agents') loadAgents();
   if (name === 'calendar') loadCalendar();
-  if (name === 'files') loadFiles(currentPath);
+  if (name === 'files') loadConfig();
   if (name === 'activity') loadActivity();
   if (name === 'security') loadSecurity();
 }
@@ -437,7 +437,7 @@ function renderHealthMetrics(health) {
   // Update uptime
   document.getElementById('health-uptime').textContent = 'Uptime: ' + (health.uptime || '--');
   
-  // Build metrics HTML
+  // Build metrics HTML - ONLY RAM and Disk
   var metrics = [];
   
   // Memory
@@ -446,7 +446,8 @@ function renderHealthMetrics(health) {
     value: health.memory.percent + '%',
     label: 'RAM',
     icon: '🧠',
-    className: memClass
+    className: memClass,
+    detail: health.memory.usedGB + ' / ' + health.memory.totalGB + ' GB'
   });
   
   // Disk
@@ -455,49 +456,20 @@ function renderHealthMetrics(health) {
     value: health.disk.percent + '%',
     label: 'Disk',
     icon: '💾',
-    className: diskClass
-  });
-  
-  // CPU Load
-  metrics.push({
-    value: health.loadAvg['1min'],
-    label: 'Load (1m)',
-    icon: '⚡',
-    className: 'info'
-  });
-  
-  // Gateway status
-  var gwClass = health.gatewayOnline ? 'good' : 'critical';
-  metrics.push({
-    value: health.gatewayOnline ? 'Online' : 'Offline',
-    label: 'Gateway',
-    icon: health.gatewayOnline ? '🟢' : '🔴',
-    className: gwClass
-  });
-  
-  // Process count
-  metrics.push({
-    value: health.processCount || '--',
-    label: 'Processes',
-    icon: '📊',
-    className: 'info'
-  });
-  
-  // Memory used/total
-  metrics.push({
-    value: health.memory.usedGB + ' / ' + health.memory.totalGB + ' GB',
-    label: 'Memory Used',
-    icon: '🧠',
-    className: 'info'
+    className: diskClass,
+    detail: health.disk.usedGB + ' / ' + health.disk.totalGB + ' GB'
   });
   
   var html = '';
   for (var i = 0; i < metrics.length; i++) {
     var m = metrics[i];
     html += '<div class="health-metric ' + m.className + '">'
-      + '<div class="health-metric-value">' + esc(String(m.value)) + '</div>'
-      + '<div class="health-metric-label">' + esc(m.label) + '</div>'
-      + '</div>';
+      + '<div class="health-metric-icon">' + m.icon + '</div>'
+      + '<div class="health-metric-content">'
+      + '<div class="health-metric-value">' + m.value + '</div>'
+      + '<div class="health-metric-label">' + m.label + '</div>'
+      + '<div class="health-metric-detail">' + m.detail + '</div>'
+      + '</div></div>';
   }
   
   document.getElementById('health-metrics').innerHTML = html;
@@ -513,6 +485,9 @@ function renderHealthMetrics(health) {
   var diskPercent = health.disk.percent || 0;
   var diskBar = document.getElementById('disk-bar');
   var diskText = document.getElementById('disk-percent');
+  diskBar.style.width = diskPercent + '%';
+  diskBar.className = 'health-bar-fill ' + (diskPercent > 80 ? 'critical' : diskPercent > 60 ? 'warning' : 'good');
+  diskText.textContent = diskPercent + '% (' + health.disk.usedGB + ' / ' + health.disk.totalGB + ' GB)';
   diskBar.style.width = diskPercent + '%';
   diskBar.className = 'health-bar-fill ' + (diskPercent > 80 ? 'critical' : diskPercent > 60 ? 'warning' : 'good');
   diskText.textContent = diskPercent + '% (' + health.disk.usedGB + ' / ' + health.disk.totalGB + ' GB)';
@@ -771,13 +746,52 @@ document.getElementById('task-modal').addEventListener('click', function(e) {
   if (e.target === this) closeTaskModal();
 });
 
-// ── File Explorer ──────────────────────────────────────────────────
+// ── Configuration View ──────────────────────────────────────────────
 
+async function loadConfig() {
+  var container = document.getElementById('config-view');
+  if (!container) {
+    // Fallback to files if element doesn't exist
+    loadFiles('');
+    return;
+  }
+  
+  container.innerHTML = '<div class="loading">Loading configuration...</div>';
+  
+  try {
+    // Load openclaw.json
+    var res = await fetch(API + '/files/read?path=openclaw.json');
+    if (!res.ok) {
+      container.innerHTML = '<div class="error">Could not load configuration</div>';
+      return;
+    }
+    
+    var data = await res.json();
+    var config = JSON.parse(data.content);
+    
+    var html = '<div class="config-card">';
+    html += '<div class="config-header">';
+    html += '<div class="config-icon">⚙️</div>';
+    html += '<div class="config-title">openclaw.json</div>';
+    html += '</div>';
+    html += '<div class="config-content">';
+    
+    // Pretty print the config
+    html += '<pre class="config-json">' + esc(JSON.stringify(config, null, 2)) + '</pre>';
+    
+    html += '</div>';
+    html += '</div>';
+    
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<div class="error">Error: ' + esc(e.message) + '</div>';
+  }
+}
+
+// Keep loadFiles for backward compatibility but it just redirects to config
 async function loadFiles(path) {
-  path = path || '';
-  currentPath = path;
-  var fileList = document.getElementById('file-list');
-  fileList.innerHTML = '<div class="loading">Loading...</div>';
+  loadConfig();
+}
 
   try {
     var res = await fetch(API + '/files?path=' + encodeURIComponent(path));
@@ -1079,38 +1093,42 @@ function renderAgentCard(agent, compact) {
   if (agent.thinking) {
     thinkingBadge = '<span class="thinking-badge"><span class="thinking-dot"></span> Working</span>';
   } else {
-    var idleOptions = ['⚡ Ready', '🎯 Locked', '💭 Idle'];
-    thinkingBadge = '<span class="idle-badge">' + idleOptions[Math.floor(Math.random() * idleOptions.length)] + '</span>';
+    thinkingBadge = '<span class="idle-badge">⚡ Ready</span>';
   }
+
+  var statusClass = agent.hasAgentDir ? 'status-online' : 'status-offline';
+  var statusText = agent.hasAgentDir ? 'Active' : 'Inactive';
 
   var taskLine = '';
   if (agent.activeTask) {
-    taskLine = '<div class="agent-detail"><span class="agent-detail-label">Working on</span><span style="color:var(--accent)">' + esc(agent.activeTask) + '</span></div>';
+    taskLine = '<div class="agent-active-task"><span class="task-label">Working on:</span><span class="task-value">' + esc(agent.activeTask) + '</span></div>';
   }
 
+  // Premium card design
   var html = '<div class="agent-card clickable ' + (agent.thinking ? 'thinking' : '') + '" onclick="openAgentDialog(\'' + escAttr(agent.id) + '\', \'' + escAttr(agent.name) + '\')">'
-    + '<div class="agent-header">'
-    + '<div class="agent-avatar">' + emoji + '</div>'
-    + '<div><div class="agent-name">' + esc(agent.name) + '</div>'
-    + '<div class="agent-id">' + esc(agent.role || agent.id) + '</div></div>'
-    + thinkingBadge
-    + '</div>';
+    + '<div class="agent-card-header">'
+    + '<div class="agent-avatar-large">' + emoji + '</div>'
+    + '<div class="agent-info">'
+    + '<div class="agent-name">' + esc(agent.name) + '</div>'
+    + '<div class="agent-role">' + esc(agent.role || agent.id) + '</div>'
+    + '</div>'
+    + '<div class="agent-status ' + statusClass + '">' + statusText + '</div>'
+    + '</div>'
+    + '<div class="agent-card-body">'
+    + thinkingBadge;
 
   if (!compact) {
     if (agent.description) {
-      html += '<div class="agent-detail" style="grid-column: 1 / -1;"><span class="agent-detail-label">Role</span><span>' + esc(agent.role) + '</span></div>';
       html += '<div class="agent-description">' + esc(agent.description) + '</div>';
     }
-    html += '<div class="agent-detail"><span class="agent-detail-label">Model</span><span>' + esc(modelStr) + '</span></div>';
-    html += '<div class="agent-detail"><span class="agent-detail-label">Workspace</span><span>' + esc(agent.workspace || 'default') + '</span></div>';
-    html += '<div class="agent-detail"><span class="agent-detail-label">Status</span><span>'
-      + '<span class="status-dot ' + (agent.hasAgentDir ? 'online' : 'offline') + '"></span>'
-      + (agent.hasAgentDir ? 'active' : 'inactive') + '</span></div>';
-    html += '<div class="agent-detail"><span class="agent-detail-label">Tasks</span><span>' + (agent.taskCount || 0) + '</span></div>';
+    html += '<div class="agent-meta">';
+    html += '<div class="meta-item"><span class="meta-label">Model</span><span class="meta-value">' + esc(modelStr.substring(0, 30)) + '</span></div>';
+    html += '<div class="meta-item"><span class="meta-label">Tasks</span><span class="meta-value">' + (agent.taskCount || 0) + '</span></div>';
+    html += '</div>';
   }
 
   html += taskLine;
-  html += '</div>';
+  html += '</div></div>';
   return html;
 }
 
@@ -1545,6 +1563,7 @@ document.getElementById('btn-refresh-security').addEventListener('click', loadSe
 var calWeekOffset = 0;
 var calJobs = [];
 var calViewMode = 'week'; // 'week' or 'timeline'
+var calAgentFilter = '';
 
 async function loadCalendar() {
   try {
@@ -1554,8 +1573,36 @@ async function loadCalendar() {
   } catch (e) {
     calJobs = [];
   }
+  populateCalFilter();
   renderCalendarView();
 }
+
+function populateCalFilter() {
+  var select = document.getElementById('cal-filter-agent');
+  if (!select) return;
+  
+  // Get unique agents from jobs
+  var agents = {};
+  for (var i = 0; i < calJobs.length; i++) {
+    var agent = calJobs[i].agent || 'system';
+    agents[agent] = true;
+  }
+  
+  var currentVal = select.value;
+  select.innerHTML = '<option value="">All Agents</option>';
+  Object.keys(agents).sort().forEach(function(agent) {
+    var opt = document.createElement('option');
+    opt.value = agent;
+    opt.textContent = agent;
+    select.appendChild(opt);
+  });
+  select.value = currentVal;
+}
+
+document.getElementById('cal-filter-agent').addEventListener('change', function(e) {
+  calAgentFilter = e.target.value;
+  renderCalendarView();
+});
 
 function renderCalendarView() {
   if (calViewMode === 'timeline') {
@@ -1631,6 +1678,10 @@ function getJobsForDay(dayIndex, date) {
   var matched = [];
   for (var i = 0; i < calJobs.length; i++) {
     var job = calJobs[i];
+    
+    // Apply agent filter
+    if (calAgentFilter && job.agent !== calAgentFilter) continue;
+    
     var days = job.daysOfWeek || [];
     if (days.length === 0 || days.indexOf(cronDow) !== -1) {
       // For "at" jobs, check if the date matches
@@ -1651,17 +1702,23 @@ function getJobsForDay(dayIndex, date) {
 }
 
 function renderJobList() {
+  // Filter jobs by agent
+  var filteredJobs = calJobs;
+  if (calAgentFilter) {
+    filteredJobs = calJobs.filter(function(j) { return j.agent === calAgentFilter; });
+  }
+  
   var html = '';
-  if (!calJobs.length) {
+  if (!filteredJobs.length) {
     html = '<div class="cal-no-jobs">'
       + '<div style="font-size:40px; margin-bottom:12px;">📅</div>'
-      + '<div style="font-size:14px; color:var(--text-dim)">No scheduled jobs yet</div>'
-      + '<div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Create cron jobs via OpenClaw to see them here</div>'
+      + '<div style="font-size:14px; color:var(--text-dim)">No scheduled jobs</div>'
+      + '<div style="font-size:12px; color:var(--text-muted); margin-top:6px;">' + (calAgentFilter ? 'No jobs for ' + calAgentFilter : 'Create cron jobs via OpenClaw') + '</div>'
       + '</div>';
   } else {
-    html = '<h3 class="cal-list-title">All Jobs (' + calJobs.length + ')</h3>';
-    for (var i = 0; i < calJobs.length; i++) {
-      var job = calJobs[i];
+    html = '<h3 class="cal-list-title">All Jobs (' + filteredJobs.length + ')' + (calAgentFilter ? ' for ' + calAgentFilter : '') + '</h3>';
+    for (var i = 0; i < filteredJobs.length; i++) {
+      var job = filteredJobs[i];
       var statusBadge = job.enabled !== false
         ? '<span class="cal-badge cal-badge-active">Active</span>'
         : '<span class="cal-badge cal-badge-disabled">Disabled</span>';
