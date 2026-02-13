@@ -2233,7 +2233,8 @@ function formatIST(ts) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true
+    hour12: true,
+    timeZone: 'Asia/Calcutta'
   };
   // en-GB gives dd/mm/yyyy, hour12 gives am/pm
   return d.toLocaleString('en-GB', options);
