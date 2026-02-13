@@ -1,5 +1,8 @@
 # 🦞 OpenClaw B.R.I.D.G.E.
 
+[![Build Status](https://github.com/ZenDeveloper7/openclaw-bridge/actions/workflows/build.yml/badge.svg)](https://github.com/ZenDeveloper7/openclaw-bridge/actions)
+[![Version](https://img.shields.io/github/v/release/ZenDeveloper7/openclaw-bridge?include_prereleases&label=version)](https://github.com/ZenDeveloper7/openclaw-bridge/releases)
+
 **Brothers' Resource & Intelligence Dashboard for General Execution**
 
 A web-based control board for the [OpenClaw](https://github.com/nicobailon/openclaw) AI gateway.
