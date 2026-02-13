@@ -1,5 +1,7 @@
 # 🦞 OpenClaw B.R.I.D.G.E.
 
+**Created by Atlas with help from Zen** 🦞⚡
+
 [![Build Status](https://github.com/ZenDeveloper7/openclaw-bridge/actions/workflows/build.yml/badge.svg)](https://github.com/ZenDeveloper7/openclaw-bridge/actions)
 [![Version](https://img.shields.io/github/v/release/ZenDeveloper7/openclaw-bridge?include_prereleases&label=version)](https://github.com/ZenDeveloper7/openclaw-bridge/releases)
 
@@ -85,4 +87,4 @@ OPENCLAW_DIR=/opt/openclaw DASHBOARD_PORT=9000 uvicorn backend.main:app --host 0
 
 ## License
 
-[MIT](LICENSE) © 2026 Zen
+[MIT](LICENSE) © 2026 Zen & Atlas
