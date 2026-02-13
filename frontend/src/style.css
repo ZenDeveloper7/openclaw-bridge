@@ -2569,3 +2569,29 @@ body.matrix-mode::before {
 .jsonl-line-body pre .number { color: var(--yellow); }
 .jsonl-line-body pre .boolean { color: var(--accent); }
 .jsonl-line-body pre .null { color: var(--text-muted); }
+
+/* ── Agent Thinking Content ───────────────────────────────────────── */
+.agent-thinking-content {
+  margin-top: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--accent-dim) 0%, var(--bg-surface) 100%);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.5;
+  max-height: 80px;
+  overflow: hidden;
+  position: relative;
+}
+
+.agent-thinking-content::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(transparent, var(--bg-surface));
+}

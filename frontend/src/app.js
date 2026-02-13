@@ -1090,8 +1090,14 @@ function renderAgentCard(agent, compact) {
   var modelStr = typeof agent.model === 'object' ? JSON.stringify(agent.model) : String(agent.model);
 
   var thinkingBadge;
+  var thinkingContent = '';
+  
   if (agent.thinking) {
     thinkingBadge = '<span class="thinking-badge"><span class="thinking-dot"></span> Working</span>';
+    // Show thinking content if available
+    if (agent.thinkingContent) {
+      thinkingContent = '<div class="agent-thinking-content">' + esc(agent.thinkingContent) + '</div>';
+    }
   } else {
     thinkingBadge = '<span class="idle-badge">⚡ Ready</span>';
   }
@@ -1115,7 +1121,8 @@ function renderAgentCard(agent, compact) {
     + '<div class="agent-status ' + statusClass + '">' + statusText + '</div>'
     + '</div>'
     + '<div class="agent-card-body">'
-    + thinkingBadge;
+    + thinkingBadge
+    + thinkingContent;
 
   if (!compact) {
     if (agent.description) {

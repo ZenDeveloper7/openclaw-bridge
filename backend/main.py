@@ -464,6 +464,37 @@ async def list_agents() -> list[dict]:
             except Exception:
                 pass
 
+        # Get thinking content from latest session
+        thinking_content = ""
+        if sessions_file.exists():
+            try:
+                sessions_data = json.loads(sessions_file.read_text())
+                for key, session in sessions_data.items():
+                    if key.startswith("agent:"):
+                        jsonl_path = session.get("sessionFile")
+                        if jsonl_path and Path(jsonl_path).exists():
+                            # Read last few lines from jsonl to find thinking
+                            with open(jsonl_path, 'r') as f:
+                                lines = f.readlines()
+                                # Look for thinking in last few lines
+                                for line in reversed(lines[-10:]):
+                                    try:
+                                        entry = json.loads(line)
+                                        msg_type = entry.get("type", "")
+                                        # Check for thinking_reasoning or message content
+                                        if msg_type == "message":
+                                            msg = entry.get("message", {})
+                                            content = msg.get("content", [])
+                                            if isinstance(content, list):
+                                                for block in content:
+                                                    if block.get("type") == "thinking":
+                                                        thinking_content = block.get("thinking", "")[:200]
+                                                        break
+                                    except:
+                                        pass
+            except Exception:
+                pass
+
         agents.append({
             "id": agent_id,
             "name": agent.get("name", agent_id),
@@ -473,6 +504,7 @@ async def list_agents() -> list[dict]:
             "workspace": Path(workspace).name if workspace else "default",
             "hasAgentDir": agent_dir.exists(),
             "thinking": is_thinking,
+            "thinkingContent": thinking_content,
             "lastActivity": last_activity,
             "session": session_info,
             "taskCount": task_count,
