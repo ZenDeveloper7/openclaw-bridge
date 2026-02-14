@@ -1,0 +1,51 @@
+"""Terminal execution API."""
+
+import subprocess
+import asyncio
+from pathlib import Path
+from fastapi import HTTPException
+
+from models import TerminalCommand
+
+
+def setup_terminal_routes(app):
+    """Register terminal routes."""
+    
+    @app.post("/api/terminal/exec")
+    def exec_terminal(cmd: TerminalCommand):
+        """Execute terminal command."""
+        # Security: restrict to safe commands
+        allowed_commands = [
+            "ls", "pwd", "cat", "echo", "date", "uptime", "df", "free",
+            "ps", "top", "htop", "git", "curl", "wget", "nano", "vim",
+            "cd", "mkdir", "rm", "cp", "mv", "chmod", "chown",
+            "docker", "kubectl", "systemctl", "journalctl",
+            "python", "python3", "pip", "pip3", "node", "npm",
+            "openclaw", "npx"
+        ]
+        
+        # Extract base command
+        base_cmd = cmd.command.strip().split()[0] if cmd.command.strip() else ""
+        
+        if base_cmd not in allowed_commands:
+            raise HTTPException(403, f"Command not allowed: {base_cmd}")
+        
+        try:
+            workdir = cmd.workdir or str(Path.home())
+            result = subprocess.run(
+                cmd.command,
+                shell=True,
+                cwd=workdir,
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            return {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "returncode": result.returncode
+            }
+        except subprocess.TimeoutExpired:
+            raise HTTPException(408, "Command timed out")
+        except Exception as e:
+            raise HTTPException(500, str(e))
