@@ -16,19 +16,21 @@ admin-dashboard/
 │       ├── __init__.py    # Route registration
 │       ├── agents.py      # Agent info (reads disk directly)
 │       ├── calendar.py    # Cron jobs (reads disk directly)
-│       ├── activity.py    # Activity log (reads disk directly)
+│       ├── activity.py    # Activity log (reads session files)
 │       ├── kanban.py      # Kanban board (JSON file)
 │       ├── files.py       # File operations + JSONL viewer
 │       ├── config.py      # Dashboard config (theme, name)
 │       ├── security.py    # System health + stats
 │       ├── network.py     # Network monitor (SSE)
 │       └── terminal.py    # Terminal execution
-└── frontend/          # Vanilla JS (no build step)
-    ├── index.html     # Main HTML with all views
-    ├── src/
-    │   ├── app.js     # All frontend logic (~2300 lines)
-    │   └── style.css  # All styles
-    └── dist/          # Mirror of above (keep synced)
+├── frontend/          # Vanilla JS (no build step)
+│   ├── index.html     # Main HTML with all views
+│   ├── src/
+│   │   ├── app.js     # All frontend logic (~2300 lines)
+│   │   └── style.css  # All styles
+│   └── dist/          # Mirror of above (keep synced)
+└── data/              # Dashboard data files (project-local)
+    └── dashboard-config.json  # Board name, icon, theme, accent
 ```
 
 ## How to Run
@@ -54,7 +56,7 @@ Frontend served by FastAPI's StaticFiles from `frontend/` directory.
 | Sessions/Agents | `~/.openclaw/agents/*/sessions/sessions.json` |
 | Cron Jobs | `~/.openclaw/cron/jobs.json` |
 | Kanban Tasks | `~/.openclaw/projects/admin-dashboard/kanban.json` |
-| Dashboard Config | `~/.openclaw/dashboard-config.json` |
+| Dashboard Config | `data/dashboard-config.json` (project; symlinked to `~/.openclaw/`) |
 | OpenClaw Config | `~/.openclaw/openclaw.json` |
 
 **Agent "active" = session updated in last 30 minutes.**
