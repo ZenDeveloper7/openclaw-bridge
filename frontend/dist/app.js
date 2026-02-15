@@ -1192,6 +1192,12 @@ function renderAgentCard(agent, compact, agentRoles) {
     if (agent.sessionKey) {
       html += '<div style="font-size:10px;color:var(--text-muted);margin-top:6px;font-family:monospace;opacity:0.6;">' + esc(agent.sessionKey) + '</div>';
     }
+    // Show last assistant message as "thinking" content
+    if (agent.lastMessage) {
+      var msg = agent.lastMessage;
+      if (msg.length > 120) msg = msg.substring(0, 120) + '...';
+      html += '<div style="font-size:12px;color:var(--text-dim);margin-top:8px;padding:8px;background:var(--bg-surface);border-radius:6px;font-style:italic;" title="' + escAttr(agent.lastMessage) + '">' + esc(msg) + '</div>';
+    }
   } else {
     if (lastActive) html += '<div style="font-size:11px;color:var(--text-dim);">' + esc(lastActive) + '</div>';
   }
@@ -2111,17 +2117,21 @@ async function loadActivity() {
   var action = actionEl ? actionEl.value : '';
 
   try {
-    var params = '?limit=100';
+    var params = '?limit=200';
     if (agent) params += '&agent=' + encodeURIComponent(agent);
     if (action) params += '&action=' + encodeURIComponent(action);
-    var res = await fetch(API + '/activity' + params);
+    var res = await fetch(API + '/activity/log' + params);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
-    // Backend returns flat array
-    var entries = Array.isArray(data) ? data : (data.entries || []);
-    renderActivity(entries, entries.length);
+    var entries = data.entries || [];
+    renderActivity(entries, data.total || entries.length);
   } catch (e) {
     container.innerHTML = '<div class="loading" style="color:var(--red)">Error loading activity: ' + esc(e.message) + '</div>';
+  }
+
+  // Auto-refresh if activity view is active
+  if (document.getElementById('view-activity').classList.contains('active')) {
+    startActivityPolling();
   }
 }
 
@@ -2136,29 +2146,36 @@ function renderActivity(entries, total) {
     return;
   }
 
-  var typeIcons = { session: '💬', cron: '⏰', spawn: '🚀' };
   var html = '<div class="activity-count">' + total + ' total entries</div>';
   for (var i = 0; i < entries.length; i++) {
     var e = entries[i];
-    var icon = typeIcons[e.type] || '📌';
+    var action = e.action || e.type || 'info';
+    var icon = getActionIcon(action);
     var agentLabel = getAgentLabel(e.agent);
     var timeStr = e.timestamp ? formatIST(e.timestamp) : '';
-    var modelStr = e.model ? esc(e.model) : '';
+    var status = e.status ? ' · ' + esc(e.status) : '';
+    var duration = e.duration_ms ? ' · ' + esc(e.duration_ms + 'ms') : '';
+    var details = e.details || '';
 
-    html += '<div class="activity-entry activity-info">'
+    // Determine CSS class for status color
+    var statusClass = 'activity-info';
+    if (e.status === 'success') statusClass = 'activity-success';
+    else if (e.status === 'error') statusClass = 'activity-error';
+
+    html += '<div class="activity-entry ' + statusClass + '">'
       + '<div class="activity-icon">' + icon + '</div>'
       + '<div class="activity-body">'
       + '<div class="activity-main">'
       + '<span class="activity-agent" style="font-weight:600;">' + agentLabel + '</span>'
-      + '<span class="activity-action" style="margin-left:6px;opacity:0.7;">' + esc(e.type || 'session') + '</span>'
+      + '<span class="activity-action" style="margin-left:6px;opacity:0.7;">' + esc(action) + '</span>'
       + '</div>'
       + '<div class="activity-meta">'
       + '<span class="activity-time">' + esc(timeStr) + '</span>'
-      + (modelStr ? '<span class="activity-duration" style="font-size:11px;opacity:0.6;">' + modelStr + '</span>' : '')
+      + (status ? '<span class="activity-status">' + esc(status) + '</span>' : '')
+      + (duration ? '<span class="activity-duration">' + esc(duration) + '</span>' : '')
       + '</div>'
-      + (e.content ? '<div class="activity-details">' + esc(e.content) + '</div>' : '')
-      + '</div>'
-      + '</div>';
+      + (details ? '<div class="activity-details">' + esc(details) + '</div>' : '')
+      + '</div></div>';
   }
   container.innerHTML = html;
 }
@@ -2197,8 +2214,21 @@ var paletteFileResults = [];
 var paletteMode = 'commands'; // 'commands' or 'files'
 var paletteSearchTimer = null;
 
+var activityPollTimer = null;
+function startActivityPolling() {
+  stopActivityPolling();
+  activityPollTimer = setInterval(loadActivity, 10000);
+}
+function stopActivityPolling() {
+  if (activityPollTimer) { clearInterval(activityPollTimer); activityPollTimer = null; }
+}
+
 function switchView(name) {
   closePalette();
+  // Stop activity polling if leaving activity view
+  if (document.getElementById('view-activity').classList.contains('active')) {
+    stopActivityPolling();
+  }
   document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.view === name); });
   showView(name);
 }

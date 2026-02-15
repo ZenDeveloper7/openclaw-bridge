@@ -16,6 +16,60 @@ AGENT_ROLES = {
     "jarvis": "General Agent",
 }
 
+def _get_last_assistant_message_from_file(file_path: str) -> str | None:
+    """Read the last assistant message from a session JSONL file."""
+    if not file_path:
+        return None
+    try:
+        # Read last 200 lines to avoid huge files
+        with open(file_path, "rb") as f:
+            # Seek from end
+            f.seek(0, 2)
+            file_size = f.tell()
+            buffer_size = 50 * 1024  # read last 50KB
+            if file_size < buffer_size:
+                buffer_size = file_size
+            f.seek(-buffer_size, 2)
+            data = f.read().decode("utf-8", errors="ignore")
+            lines = data.splitlines()
+        # If we didn't capture full lines at boundary, drop first partial
+        if lines and not data.startswith('\n'):
+            lines = lines[1:]
+        # Search from end
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+                # Case: top-level role
+                if entry.get("role") == "assistant":
+                    content = entry.get("content") or entry.get("text") or ""
+                    if isinstance(content, list):
+                        # Concatenate text blocks
+                        texts = []
+                        for block in content:
+                            if block.get("type") == "text":
+                                texts.append(block.get("text", ""))
+                        content = "\n".join(texts)
+                    return str(content).strip()
+                # Case: message wrapper
+                msg = entry.get("message", {})
+                if msg.get("role") == "assistant":
+                    content = msg.get("content") or msg.get("text") or ""
+                    if isinstance(content, list):
+                        texts = []
+                        for block in content:
+                            if block.get("type") == "text":
+                                texts.append(block.get("text", ""))
+                        content = "\n".join(texts)
+                    return str(content).strip()
+            except Exception:
+                continue
+        return None
+    except Exception:
+        return None
+
 def _get_agents_config() -> list[dict]:
     """Read agents list from openclaw.json."""
     try:
@@ -156,7 +210,8 @@ def setup_agents_routes(app):
                     "startedAt": None,
                     "messageCount": 0,
                     "updatedAt": sess.get("updatedAt"),
-                    "ageMs": sess.get("ageMs", 0)
+                    "ageMs": sess.get("ageMs", 0),
+                    "lastMessage": _get_last_assistant_message_from_file(sess.get("sessionFile")) or ""
                 })
             
             # Inactive agents

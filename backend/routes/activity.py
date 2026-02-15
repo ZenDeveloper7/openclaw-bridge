@@ -104,3 +104,33 @@ def setup_activity_routes(app):
     def log_activity(entry: dict):
         """Log custom activity entry."""
         return entry
+
+    @app.get("/api/activity/log")
+    def get_activity_log(limit: int = 200, offset: int = 0, action: str = None):
+        """Read the raw activity feed from activity-feed.jsonl."""
+        log_file = OPENCLAW_DIR / "activity-feed.jsonl"
+        if not log_file.exists():
+            return {"total": 0, "offset": 0, "limit": limit, "entries": []}
+        
+        entries = []
+        try:
+            with open(log_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                        if action and entry.get("action") != action:
+                            continue
+                        entries.append(entry)
+                    except json.JSONDecodeError:
+                        continue
+        except Exception:
+            return {"total": 0, "offset": 0, "limit": limit, "entries": []}
+        
+        total = len(entries)
+        # Newest first
+        entries.reverse()
+        page = entries[offset: offset + limit]
+        return {"total": total, "offset": offset, "limit": limit, "entries": page}

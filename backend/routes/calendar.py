@@ -101,14 +101,18 @@ def _describe_cron(expr: str) -> str:
                 pass
         
         # Monthly on day 1: 0 0 1 * *
-        if minute == '0' and hour == '0' and dom == '1' and month == '*' and dow == '*':
+        if dom == '1' and month == '*' and dow == '*':
             return "Monthly on day 1st"
         
-        # Monthly on specific day: 0 0 N * *
-        if minute == '0' and hour == '0' and dom not in ['*', '?'] and month == '*' and dow == '*':
+        # Monthly on specific days: N1,N2,... * * (any time)
+        if dom not in ['*', '?'] and month == '*' and dow == '*':
             try:
-                d = int(dom)
-                return f"Monthly on day {d}{ordinal(d)}"
+                days = [int(d) for d in dom.split(',')]
+                if len(days) == 1:
+                    return f"Monthly on day {days[0]}{ordinal(days[0])}"
+                else:
+                    day_strs = [f"{d}{ordinal(d)}" for d in sorted(days)]
+                    return "Monthly on days " + ', '.join(day_strs)
             except:
                 pass
         
