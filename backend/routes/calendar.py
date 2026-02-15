@@ -48,6 +48,76 @@ def _format_relative_time(ms: int) -> str:
         return f"{mins}m ago"
 
 
+def _describe_cron(expr: str) -> str:
+    """Convert a cron expression to a human-friendly description."""
+    parts = expr.strip().split()
+    if len(parts) != 5:
+        return expr
+    
+    minute, hour, dom, month, dow = parts
+    
+    def ordinal(n: int) -> str:
+        return "th" if 4 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    
+    try:
+        # Every N minutes: */N * * * *
+        if minute.startswith('*/') and hour == '*' and dom == '*' and month == '*' and dow == '*':
+            n = int(minute[2:])
+            return f"Every {n} minute{'s' if n != 1 else ''}"
+        
+        # Every N hours: 0 */N * * *
+        if minute == '0' and hour.startswith('*/') and dom == '*' and month == '*' and dow == '*':
+            n = int(hour[2:])
+            return f"Every {n} hour{'s' if n != 1 else ''}"
+        
+        # Every N days: 0 0 */N * *
+        if minute == '0' and hour == '0' and dom.startswith('*/') and month == '*' and dow == '*':
+            n = int(dom[2:])
+            return f"Every {n} day{'s' if n != 1 else ''}"
+        
+        # Daily at specific time: N M * * *
+        if minute != '*' and hour != '*' and dom == '*' and month == '*' and dow == '*':
+            try:
+                h = int(hour)
+                m = int(minute)
+                time_str = f"{h:02d}:{m:02d}"
+                return f"Daily at {time_str}"
+            except:
+                pass
+        
+        # Daily at midnight: 0 0 * * *
+        if minute == '0' and hour == '0' and dom == '*' and month == '*' and dow == '*':
+            return "Daily at midnight"
+        
+        # Weekly on specific day(s): 0 0 * * 1,3,5 (Mon,Wed,Fri)
+        if minute == '0' and hour == '0' and dom == '*' and month == '*' and dow != '*':
+            days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+            try:
+                dow_nums = [int(x) for x in dow.split(',')]
+                day_names = [days[d] for d in dow_nums if 0 <= d <= 6]
+                if day_names:
+                    return f"Weekly on {', '.join(day_names)}"
+            except:
+                pass
+        
+        # Monthly on day 1: 0 0 1 * *
+        if minute == '0' and hour == '0' and dom == '1' and month == '*' and dow == '*':
+            return "Monthly on day 1st"
+        
+        # Monthly on specific day: 0 0 N * *
+        if minute == '0' and hour == '0' and dom not in ['*', '?'] and month == '*' and dow == '*':
+            try:
+                d = int(dom)
+                return f"Monthly on day {d}{ordinal(d)}"
+            except:
+                pass
+        
+    except Exception:
+        pass
+    
+    return expr
+
+
 def setup_calendar_routes(app):
     """Register calendar routes."""
     
@@ -66,8 +136,9 @@ def setup_calendar_routes(app):
             
             # Build schedule description
             expr = schedule.get("expr", "")
+            human_desc = _describe_cron(expr)
             tz = schedule.get("tz", "")
-            schedule_desc = f"{expr}"
+            schedule_desc = human_desc
             if tz:
                 schedule_desc += f" ({tz})"
             
