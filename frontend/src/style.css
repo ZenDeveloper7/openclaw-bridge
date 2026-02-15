@@ -2309,6 +2309,9 @@ body.matrix-mode::before {
 
 .config-content {
   padding: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .config-json {
