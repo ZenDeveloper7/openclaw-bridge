@@ -11,10 +11,11 @@ from collections import deque
 OPENCLAW_DIR = Path(os.environ.get("OPENCLAW_DIR", Path.home() / ".openclaw"))
 OPENCLAW_CONFIG = OPENCLAW_DIR / "openclaw.json"
 KANBAN_FILE = Path(__file__).parent.parent / "kanban.json"
-DASHBOARD_CONFIG_FILE = OPENCLAW_DIR / "dashboard-config.json"
+DASHBOARD_DATA_DIR = Path(__file__).parent.parent / "data"
+DASHBOARD_CONFIG_FILE = DASHBOARD_DATA_DIR / "dashboard-config.json"
 
 # ── State (in-memory) ─────────────────────────────────────────────────
-network_log: deque = deque(maxlen=500)
+network_log = deque(maxlen=500)
 network_paused = False
 network_id_counter = 0
 
