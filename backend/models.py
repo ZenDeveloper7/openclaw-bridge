@@ -23,7 +23,7 @@ class FileInfo(BaseModel):
 
 
 class KanbanTask(BaseModel):
-    id: str
+    id: str | None = None
     title: str
     description: str = ""
     status: str = "backlog"

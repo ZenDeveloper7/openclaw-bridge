@@ -62,7 +62,7 @@ Each card shows who owns it:
 
 ## Data Storage
 
-- All tasks are saved in `~/.openclaw/kanban.json`
+- All tasks are saved in `projects/admin-dashboard/kanban.json` (relative to project root)
 - The file is plain JSON — you can edit it directly if needed
 - Format:
 ```json
@@ -170,5 +170,3 @@ The **📊 Dashboard** view shows:
 - **Ctrl+K** → Command Palette → type "Kanban" to jump to the board
 
 ---
-
-*Part of the OpenClaw Admin Dashboard at `~/.openclaw/workspace-atlas/admin-dashboard/`*

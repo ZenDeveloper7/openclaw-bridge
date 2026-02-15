@@ -186,6 +186,9 @@ def setup_agents_routes(app):
             sessions = _get_all_sessions()
             result = []
             
+            now_ms = int(time.time() * 1000)
+            thinking_threshold = 30 * 1000  # 30 seconds - "thinking" if updated within this time
+            
             for sess in sessions:
                 key = sess.get("key", "")
                 parts = key.split(":")
@@ -209,6 +212,10 @@ def setup_agents_routes(app):
                 if "cron:" in key or ":run:" in key:
                     run_count = sess.get("runCount", 1)
                 
+                # Check if "thinking" (updated within last 30 seconds)
+                updated_at = sess.get("updatedAt", 0)
+                is_thinking = (now_ms - updated_at) < thinking_threshold if updated_at else False
+                
                 result.append({
                     "id": session_id,
                     "agentId": agent_id,
@@ -216,9 +223,10 @@ def setup_agents_routes(app):
                     "contextTokens": context_tokens,
                     "totalTokens": total_tokens,
                     "channel": channel,
-                    "updatedAt": sess.get("updatedAt"),
+                    "updatedAt": updated_at,
                     "runCount": run_count,
-                    "isSubagent": "subagent" in key
+                    "isSubagent": "subagent" in key,
+                    "thinking": is_thinking
                 })
             
             return result
