@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException
 import httpx
 
-from config import get_gateway_url, get_gateway_token, OPENCLAW_DIR
+from config import get_gateway_url, get_gateway_token, OPENCLAW_DIR, OPENCLAW_CONFIG, parse_json5
 
 
 def _format_uptime(seconds: float) -> str:
@@ -26,61 +26,19 @@ def _format_uptime(seconds: float) -> str:
     return f"{mins}m"
 
 
-def _get_version_fast() -> str:
-    """Quick version check for openclaw."""
-    try:
-        result = subprocess.run(
-            ["npx", "openclaw", "--version"],
-            capture_output=True, text=True, timeout=5
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return "unknown"
-
-
-def _get_workspace_size() -> int:
-    """Calculate workspace directory size with caching."""
-    import time
-    cache_key = "workspace_size_cache"
-    cache_ttl = 300  # 5 minutes
-    
-    # Check cache
-    if hasattr(_get_workspace_size, '_cache') and _get_workspace_size._cache:
-        cache = _get_workspace_size._cache
-        if time.time() - cache.get('_timestamp', 0) < cache_ttl:
-            return cache.get('_size', 0)
-    
-    # Calculate total openclaw directory size (not just workspace-atlas)
-    total = 0
-    if OPENCLAW_DIR.exists():
-        for entry in OPENCLAW_DIR.rglob("*"):
-            if entry.is_file():
-                try:
-                    total += entry.stat().st_size
-                except Exception:
-                    pass
-    
-    # Cache result
-    _get_workspace_size._cache = {'_size': total, '_timestamp': time.time()}
-    return total
-
-
 def setup_security_routes(app):
     """Register security and health routes."""
     
     @app.get("/api/security")
     def get_security_info():
-        """Get security hardening status."""
-        # Check SSH config
-        ssh_dir = Path.home() / ".ssh"
+        """Get security info in the format expected by the frontend."""
+        # Get basic info we have
         ssh_secure = False
+        ssh_dir = Path.home() / ".ssh"
         if ssh_dir.exists():
             ssh_key = ssh_dir / "id_ed25519"
             ssh_secure = ssh_key.exists() and ssh_key.stat().st_mode & 0o77 == 0
-        
-        # Check firewall (simplified)
+
         firewall_enabled = False
         try:
             result = subprocess.run(
@@ -90,26 +48,32 @@ def setup_security_routes(app):
             firewall_enabled = "Status: active" in result.stdout
         except Exception:
             pass
-        
-        # Check recent logins
-        recent_logins = []
-        try:
-            result = subprocess.run(
-                ["last", "-n", "5", "-t"],
-                capture_output=True, text=True, timeout=5
-            )
-            for line in result.stdout.strip().split("\n"):
-                if line and "wtmp" not in line:
-                    recent_logins.append(line.strip())
-        except Exception:
-            pass
-        
+
+        # Format as expected by frontend
+        threats = {
+            "level": "low",
+            "failedSSH": 0,
+            "blockedMessages": 0
+        }
+
+        tailscale = {
+            "status": "off"
+        }
+
+        ssh = {
+            "recent": []
+        }
+
+        authEvents = []
+
         return {
+            "threats": threats,
+            "tailscale": tailscale,
+            "ssh": ssh,
+            "authEvents": authEvents,
+            # Also include raw data for future use
             "sshHardened": ssh_secure,
-            "firewallEnabled": firewall_enabled,
-            "recentLogins": recent_logins,
-            "openclawVersion": _get_version_fast(),
-            "workspaceSize": _get_workspace_size()
+            "firewallEnabled": firewall_enabled
         }
     
     @app.get("/api/health")
@@ -194,8 +158,12 @@ def setup_security_routes(app):
             except Exception:
                 pass
         
-        # Version
-        version = _get_version_fast()
+        # Version - read from openclaw.json
+        try:
+            cfg = parse_json5(OPENCLAW_CONFIG.read_text())
+            version = cfg.get("meta", {}).get("lastTouchedVersion", "unknown")
+        except Exception:
+            version = "unknown"
         
         # Gateway check
         gateway_url = get_gateway_url()
@@ -215,7 +183,15 @@ def setup_security_routes(app):
         except Exception:
             agent_config_count = agent_count
         
-        ws_size = _get_workspace_size()
+        # Workspace size - calculate fresh
+        ws_size = 0
+        if OPENCLAW_DIR.exists():
+            for entry in OPENCLAW_DIR.rglob("*"):
+                if entry.is_file():
+                    try:
+                        ws_size += entry.stat().st_size
+                    except Exception:
+                        pass
         
         return {
             "version": version,

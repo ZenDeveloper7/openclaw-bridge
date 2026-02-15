@@ -84,7 +84,8 @@ def setup_calendar_routes(app):
                 "lastRun": last_run,
                 "status": state.get("lastStatus", "idle"),
                 "sessionTarget": job.get("sessionTarget", "main"),
-                "agent": job.get("agentId", "main")
+                "agent": job.get("agentId", "main"),
+                "payload": job.get("payload")
             })
         
         return jobs
