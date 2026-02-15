@@ -598,6 +598,13 @@ body {
 .health-bar-fill.warning { background: var(--yellow); }
 .health-bar-fill.critical { background: var(--red); }
 
+.health-bar-percent {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+  font-family: monospace;
+}
+
 /* ── Load Average Chart ───────────────────────────────────────────── */
 .load-chart {
   margin-top: 16px;
