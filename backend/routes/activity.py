@@ -1,65 +1,41 @@
-"""Activity log API."""
+"""Activity log API — read directly from disk."""
 
-import httpx
+import json
+import time
+from pathlib import Path
 from datetime import datetime
 from fastapi import HTTPException
 
-from config import get_gateway_url, get_gateway_token
-from models import ActivityEntry
+from config import OPENCLAW_DIR
 
 
-def _parse_gateway_activity(limit: int = 200) -> list[dict]:
-    """Fetch activity from gateway."""
-    gateway_url = get_gateway_url()
-    token = get_gateway_token()
+def _get_all_sessions() -> list[dict]:
+    """Read sessions from all agent session files."""
+    sessions = []
+    agents_dir = OPENCLAW_DIR / "agents"
+    if not agents_dir.exists():
+        return sessions
     
-    headers = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    now_ms = int(time.time() * 1000)
     
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.get(
-                f"{gateway_url}/api/sessions",
-                headers=headers,
-                params={"messageLimit": limit}
-            )
-            if resp.status_code != 200:
-                return []
-            
-            sessions = resp.json()
-            activities = []
-            
-            for sess in sessions:
-                key = sess.get("sessionKey", "")
-                agent_id = sess.get("agentId", "unknown")
-                msg_count = sess.get("messageCount", 0)
-                started = sess.get("startedAt", "")
-                
-                if started:
-                    activities.append({
-                        "id": f"session-{key}",
-                        "timestamp": started,
-                        "type": "session_start",
-                        "content": f"Agent {agent_id} started",
-                        "source": key
-                    })
-                
-                if msg_count > 0:
-                    activities.append({
-                        "id": f"messages-{key}",
-                        "timestamp": datetime.now().isoformat(),
-                        "type": "messages",
-                        "content": f"{msg_count} messages exchanged",
-                        "source": key
-                    })
-            
-            # Sort by timestamp descending
-            activities.sort(key=lambda x: x["timestamp"], reverse=True)
-            return activities[:limit]
-            
-    except Exception:
-        return []
+    for agent_dir in agents_dir.iterdir():
+        if not agent_dir.is_dir():
+            continue
+        sessions_file = agent_dir / "sessions" / "sessions.json"
+        if not sessions_file.exists():
+            continue
+        try:
+            data = json.loads(sessions_file.read_text())
+            for key, sess in data.items():
+                sess["key"] = key
+                updated = sess.get("updatedAt", 0)
+                if updated:
+                    sess["ageMs"] = now_ms - updated
+                sessions.append(sess)
+        except Exception:
+            continue
+    
+    return sessions
 
 
 def setup_activity_routes(app):
@@ -67,11 +43,64 @@ def setup_activity_routes(app):
     
     @app.get("/api/activity")
     def get_activity(limit: int = 50):
-        """Get recent activity."""
-        return _parse_gateway_activity(limit)
+        """Get recent activity from session files."""
+        try:
+            sessions = _get_all_sessions()
+            
+            # Filter to last 24 hours
+            now_ms = int(time.time() * 1000)
+            cutoff = now_ms - (24 * 60 * 60 * 1000)
+            
+            activities = []
+            for sess in sessions:
+                updated_at = sess.get("updatedAt", 0)
+                if updated_at < cutoff:
+                    continue
+                
+                key = sess.get("key", "")
+                parts = key.split(":")
+                agent_id = parts[1] if len(parts) > 1 else "unknown"
+                
+                age_ms = sess.get("ageMs", 0)
+                age_mins = age_ms // 60000 if age_ms else 0
+                if age_mins < 1:
+                    age_str = "just now"
+                elif age_mins < 60:
+                    age_str = f"{age_mins}m ago"
+                elif age_mins < 1440:
+                    age_str = f"{age_mins // 60}h {age_mins % 60}m ago"
+                else:
+                    days = age_mins // 1440
+                    hours = (age_mins % 1440) // 60
+                    age_str = f"{days}d {hours}h ago"
+                
+                timestamp = datetime.fromtimestamp(updated_at / 1000).isoformat() if updated_at else datetime.now().isoformat()
+                
+                # Determine activity type
+                activity_type = "session"
+                if "cron:" in key:
+                    activity_type = "cron"
+                elif ":run:" in key:
+                    activity_type = "spawn"
+                
+                activities.append({
+                    "id": f"session-{key}",
+                    "timestamp": timestamp,
+                    "type": activity_type,
+                    "content": f"Agent {agent_id} — {age_str}",
+                    "source": key,
+                    "agent": agent_id,
+                    "model": None,
+                    "updatedAt": updated_at
+                })
+            
+            activities.sort(key=lambda x: x.get("updatedAt", 0), reverse=True)
+            return activities[:limit]
+            
+        except Exception as e:
+            return []
     
     @app.post("/api/activity")
-    def log_activity(entry: ActivityEntry):
+    def log_activity(entry: dict):
         """Log custom activity entry."""
-        # For now, just echo back - could be stored locally
-        return entry.model_dump()
+        return entry

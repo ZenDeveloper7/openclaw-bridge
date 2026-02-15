@@ -45,6 +45,10 @@ def setup_kanban_routes(app):
     @app.put("/api/kanban/task/{task_id}")
     def update_task(task_id: str, task: KanbanTask):
         """Update task."""
+        # Fixed: Validate task ID is not empty
+        if not task_id or not task_id.strip():
+            raise HTTPException(400, "Invalid task ID")
+        
         data = _load_kanban()
         for i, t in enumerate(data["tasks"]):
             if t["id"] == task_id:
@@ -57,14 +61,21 @@ def setup_kanban_routes(app):
     @app.delete("/api/kanban/task/{task_id}")
     def delete_task(task_id: str):
         """Delete task."""
+        # Fixed: Validate task ID is not empty
+        if not task_id or not task_id.strip():
+            raise HTTPException(400, "Invalid task ID")
+        
         data = _load_kanban()
         data["tasks"] = [t for t in data["tasks"] if t["id"] != task_id]
         _save_kanban(data)
         return {"success": True}
     
     @app.put("/api/kanban/task/{task_id}/move")
-    def move_task(task_id: str, status: str):
+    def move_task(task_id: str, body: dict):
         """Move task to column."""
+        status = body.get("status", "")
+        if not status:
+            raise HTTPException(400, "Missing status")
         data = _load_kanban()
         for t in data["tasks"]:
             if t["id"] == task_id:

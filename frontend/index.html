@@ -8,6 +8,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="src/style.css?v=6">
+  <!-- CodeMirror for code editing -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/lib/codemirror.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/theme/material-darker.css">
 </head>
 <body>
   <!-- Mobile sidebar overlay -->
@@ -29,6 +32,7 @@
         <button class="nav-btn active" data-view="dashboard">📊 Dashboard</button>
         <button class="nav-btn" data-view="kanban">📋 Kanban</button>
         <button class="nav-btn" data-view="agents">🤖 Agents</button>
+        <button class="nav-btn" data-view="subagents">🤖 Subagents</button>
         <button class="nav-btn" data-view="calendar">📅 Calendar</button>
         <button class="nav-btn" data-view="files">⚙️ Config</button>
         <button class="nav-btn" data-view="activity">📊 Activity</button>
@@ -61,51 +65,17 @@
           <!-- Progress Bars -->
           <div class="health-bars">
             <div class="health-bar-item">
-              <div class="health-bar-label">
-                <span>Memory</span>
-                <span id="mem-percent">0%</span>
-              </div>
               <div class="health-bar-track">
                 <div id="mem-bar" class="health-bar-fill" style="width: 0%;"></div>
               </div>
             </div>
             <div class="health-bar-item">
-              <div class="health-bar-label">
-                <span>Disk</span>
-                <span id="disk-percent">0%</span>
-              </div>
               <div class="health-bar-track">
                 <div id="disk-bar" class="health-bar-fill" style="width: 0%;"></div>
               </div>
             </div>
           </div>
-          <!-- Load Average Chart -->
-          <div class="load-chart">
-            <h4>Load Average</h4>
-            <div class="load-bars">
-              <div class="load-bar-group">
-                <div class="load-bar-container">
-                  <div id="load-1" class="load-bar-fill" style="height: 0%;"></div>
-                </div>
-                <span class="load-label">1m</span>
-                <span id="load-1-val" class="load-value">0</span>
-              </div>
-              <div class="load-bar-group">
-                <div class="load-bar-container">
-                  <div id="load-5" class="load-bar-fill" style="height: 0%;"></div>
-                </div>
-                <span class="load-label">5m</span>
-                <span id="load-5-val" class="load-value">0</span>
-              </div>
-              <div class="load-bar-group">
-                <div class="load-bar-container">
-                  <div id="load-15" class="load-bar-fill" style="height: 0%;"></div>
-                </div>
-                <span class="load-label">15m</span>
-                <span id="load-15-val" class="load-value">0</span>
-              </div>
-            </div>
-          </div>
+          <!-- Load average removed -->
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
           <div>
@@ -139,6 +109,15 @@
           <button id="btn-refresh-agents" class="btn btn-secondary">🔄 Refresh</button>
         </div>
         <div id="agent-list" class="agent-grid"></div>
+      </div>
+
+      <!-- Subagents View -->
+      <div id="view-subagents" class="view">
+        <div class="view-header">
+          <h2>🤖 Subagents</h2>
+          <button id="btn-refresh-subagents" class="btn btn-secondary">🔄 Refresh</button>
+        </div>
+        <div id="subagent-list" class="agent-grid"></div>
       </div>
 
       <!-- Files View -->
@@ -426,6 +405,14 @@
 
     </main>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/lib/codemirror.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/mode/javascript/javascript.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/mode/python/python.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/mode/markdown/markdown.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/mode/htmlmixed/htmlmixed.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/mode/css/css.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/addon/edit/closebrackets.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/addon/edit/matchbrackets.js"></script>
   <script src="src/app.js?v=6"></script>
 </body>
 </html>

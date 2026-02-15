@@ -2,6 +2,7 @@
 
 import os
 import re
+import time
 import subprocess
 import shutil
 import psutil
@@ -40,16 +41,29 @@ def _get_version_fast() -> str:
 
 
 def _get_workspace_size() -> int:
-    """Calculate workspace directory size."""
+    """Calculate workspace directory size with caching."""
+    import time
+    cache_key = "workspace_size_cache"
+    cache_ttl = 300  # 5 minutes
+    
+    # Check cache
+    if hasattr(_get_workspace_size, '_cache') and _get_workspace_size._cache:
+        cache = _get_workspace_size._cache
+        if time.time() - cache.get('_timestamp', 0) < cache_ttl:
+            return cache.get('_size', 0)
+    
+    # Calculate total openclaw directory size (not just workspace-atlas)
     total = 0
-    workspace = OPENCLAW_DIR / "workspace-atlas"
-    if workspace.exists():
-        for entry in workspace.rglob("*"):
+    if OPENCLAW_DIR.exists():
+        for entry in OPENCLAW_DIR.rglob("*"):
             if entry.is_file():
                 try:
                     total += entry.stat().st_size
                 except Exception:
                     pass
+    
+    # Cache result
+    _get_workspace_size._cache = {'_size': total, '_timestamp': time.time()}
     return total
 
 
@@ -118,12 +132,12 @@ def setup_security_routes(app):
         except Exception:
             load_avg = {"1min": 0, "5min": 0, "15min": 0}
         
-        # Gateway status
+        # Gateway status - just check if the port responds
         gateway_url = get_gateway_url()
         gateway_online = False
         try:
             with httpx.Client(timeout=3.0) as client:
-                resp = client.get(f"{gateway_url}/api/health")
+                resp = client.get(gateway_url)
                 gateway_online = resp.status_code == 200
         except Exception:
             pass
@@ -150,20 +164,17 @@ def setup_security_routes(app):
     @app.get("/api/stats")
     def get_stats():
         """Get dashboard stats."""
-        # Agent count
-        gateway_url = get_gateway_url()
-        token = get_gateway_token()
+        # Agent count from session files
         agent_count = 0
-        
-        headers = {}
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
-        
         try:
-            with httpx.Client(timeout=5.0) as client:
-                resp = client.get(f"{gateway_url}/api/sessions", headers=headers)
-                if resp.status_code == 200:
-                    agent_count = len(resp.json())
+            import json
+            agents_dir = OPENCLAW_DIR / "agents"
+            if agents_dir.exists():
+                for agent_dir in agents_dir.iterdir():
+                    sf = agent_dir / "sessions" / "sessions.json"
+                    if sf.exists():
+                        data = json.loads(sf.read_text())
+                        agent_count += len(data)
         except Exception:
             pass
         
@@ -183,11 +194,35 @@ def setup_security_routes(app):
             except Exception:
                 pass
         
+        # Version
+        version = _get_version_fast()
+        
+        # Gateway check
+        gateway_url = get_gateway_url()
+        gateway_running = False
+        try:
+            with httpx.Client(timeout=2.0) as client:
+                resp = client.get(gateway_url)
+                gateway_running = resp.status_code == 200
+        except Exception:
+            pass
+        
+        # Agent config count
+        try:
+            import json as _j
+            cfg = _j.loads((OPENCLAW_DIR / "openclaw.json").read_text())
+            agent_config_count = len(cfg.get("agents", {}).get("list", []))
+        except Exception:
+            agent_config_count = agent_count
+        
+        ws_size = _get_workspace_size()
+        
         return {
+            "version": version,
+            "gatewayRunning": gateway_running,
+            "agentCount": agent_config_count,
             "agents": agent_count,
             "tasks": kanban_stats,
-            "workspaceSize": _get_workspace_size()
+            "workspaceSize": ws_size,
+            "workspaceSizeMB": round(ws_size / (1024 * 1024), 1)
         }
-
-
-import time

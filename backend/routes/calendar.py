@@ -1,61 +1,51 @@
-"""Calendar and cron jobs API."""
+"""Calendar and cron jobs API — read directly from disk."""
 
-import httpx
-from fastapi import HTTPException
+import json
+from pathlib import Path
+from datetime import datetime
 
-from config import get_gateway_url, get_gateway_token
-
-
-def _parse_cron_schedule_desc(schedule: dict) -> str:
-    """Convert cron schedule to human description."""
-    kind = schedule.get("kind", "")
-    
-    if kind == "every":
-        every = schedule.get("everyMs", 0)
-        if every >= 86400000:
-            return f"Every {every // 86400000} day(s)"
-        elif every >= 3600000:
-            return f"Every {every // 3600000} hour(s)"
-        elif every >= 60000:
-            return f"Every {every // 60000} minute(s)"
-        return f"Every {every}ms"
-    
-    elif kind == "cron":
-        expr = schedule.get("expr", "")
-        # Simple cron parsing
-        parts = expr.split()
-        if len(parts) == 5:
-            return f"Cron: {parts[0]} {parts[1]} {parts[2]} {parts[3]} {parts[4]}"
-        return f"Cron: {expr}"
-    
-    elif kind == "at":
-        return f"At: {schedule.get('at', '')}"
-    
-    return "Unknown"
+from config import OPENCLAW_DIR
 
 
-def _get_cron_day_of_week(schedule: dict) -> list[int]:
-    """Parse day of week from cron schedule."""
-    if schedule.get("kind") != "cron":
+def _load_cron_jobs() -> list[dict]:
+    """Read cron jobs from jobs.json."""
+    jobs_file = OPENCLAW_DIR / "cron" / "jobs.json"
+    if not jobs_file.exists():
         return []
-    expr = schedule.get("expr", "").split()
-    if len(expr) < 5:
+    try:
+        data = json.loads(jobs_file.read_text())
+        return data.get("jobs", [])
+    except Exception:
         return []
+
+
+def _format_relative_time(ms: int) -> str:
+    """Format milliseconds as relative time string."""
+    import time
+    now_ms = int(time.time() * 1000)
+    diff_ms = ms - now_ms
     
-    dow = expr[4]
-    if dow == "*":
-        return list(range(7))
-    
-    # Handle ranges like "1-5"
-    if "-" in dow:
-        start, end = map(int, dow.split("-"))
-        return list(range(start, end + 1))
-    
-    # Handle lists like "1,3,5"
-    if "," in dow:
-        return [int(d) for d in dow.split(",")]
-    
-    return [int(dow)]
+    if diff_ms > 0:
+        # Future
+        mins = diff_ms // 60000
+        hours = mins // 60
+        days = hours // 24
+        if days > 0:
+            return f"in {days}d"
+        if hours > 0:
+            return f"in {hours}h"
+        return f"in {mins}m"
+    else:
+        # Past
+        diff_ms = -diff_ms
+        mins = diff_ms // 60000
+        hours = mins // 60
+        days = hours // 24
+        if days > 0:
+            return f"{days}d ago"
+        if hours > 0:
+            return f"{hours}h ago"
+        return f"{mins}m ago"
 
 
 def setup_calendar_routes(app):
@@ -63,30 +53,38 @@ def setup_calendar_routes(app):
     
     @app.get("/api/calendar/jobs")
     def list_cron_jobs():
-        """List scheduled cron jobs from gateway."""
-        gateway_url = get_gateway_url()
-        token = get_gateway_token()
+        """List scheduled cron jobs."""
+        raw_jobs = _load_cron_jobs()
         
-        headers = {}
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+        jobs = []
+        for job in raw_jobs:
+            if not job.get("enabled", True):
+                continue
+            
+            schedule = job.get("schedule", {})
+            state = job.get("state", {})
+            
+            # Build schedule description
+            expr = schedule.get("expr", "")
+            tz = schedule.get("tz", "")
+            schedule_desc = f"{expr}"
+            if tz:
+                schedule_desc += f" ({tz})"
+            
+            # Next/last run
+            next_run = _format_relative_time(state.get("nextRunAtMs", 0)) if state.get("nextRunAtMs") else "-"
+            last_run = _format_relative_time(state.get("lastRunAtMs", 0)) if state.get("lastRunAtMs") else "-"
+            
+            jobs.append({
+                "id": job.get("id", ""),
+                "name": job.get("name", "Unnamed"),
+                "schedule": schedule,
+                "scheduleDesc": schedule_desc,
+                "nextRun": next_run,
+                "lastRun": last_run,
+                "status": state.get("lastStatus", "idle"),
+                "sessionTarget": job.get("sessionTarget", "main"),
+                "agent": job.get("agentId", "main")
+            })
         
-        try:
-            with httpx.Client(timeout=10.0) as client:
-                resp = client.get(f"{gateway_url}/api/cron/list", headers=headers)
-                if resp.status_code != 200:
-                    return []
-                
-                jobs = resp.json()
-                
-                # Enrich with human-readable schedule
-                for job in jobs:
-                    job["scheduleDesc"] = _parse_cron_schedule_desc(job.get("schedule", {}))
-                    job["daysOfWeek"] = _get_cron_day_of_week(job.get("schedule", {}))
-                
-                return jobs
-                
-        except httpx.ConnectError:
-            return []
-        except Exception:
-            return []
+        return jobs

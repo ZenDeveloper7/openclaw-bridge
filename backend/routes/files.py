@@ -66,7 +66,10 @@ def setup_files_routes(app):
         if ".." in path or path.startswith("/"):
             raise HTTPException(400, "Invalid path")
         root = get_openclaw_dir() / "workspace-atlas"
-        file_path = root / path
+        file_path = (root / path).resolve()
+        # Fixed: Path traversal protection - ensure resolved path is within root
+        if not str(file_path).startswith(str(root.resolve())):
+            raise HTTPException(400, "Invalid path")
         if not file_path.exists():
             raise HTTPException(404, "File not found")
         if file_path.is_dir():
@@ -81,7 +84,10 @@ def setup_files_routes(app):
         if ".." in path or path.startswith("/"):
             raise HTTPException(400, "Invalid path")
         root = get_openclaw_dir() / "workspace-atlas"
-        file_path = root / path
+        file_path = (root / path).resolve()
+        # Fixed: Path traversal protection - ensure resolved path is within root
+        if not str(file_path).startswith(str(root.resolve())):
+            raise HTTPException(400, "Invalid path")
         if not file_path.exists():
             raise HTTPException(404, "File not found")
         
@@ -96,26 +102,32 @@ def setup_files_routes(app):
         return Response(content=file_path.read_bytes(), media_type=media_type)
     
     @app.get("/api/files/jsonl")
-    def read_jsonl(path: str, limit: int = 100):
-        """Read JSONL file."""
+    def read_jsonl(path: str, offset: int = 0, limit: int = 100):
+        """Read JSONL file with pagination."""
         if ".." in path or path.startswith("/"):
             raise HTTPException(400, "Invalid path")
         root = get_openclaw_dir()
-        file_path = root / path
+        file_path = (root / path).resolve()
+        # Fixed: Path traversal protection - ensure resolved path is within root
+        if not str(file_path).startswith(str(root.resolve())):
+            raise HTTPException(400, "Invalid path")
         if not file_path.exists():
             raise HTTPException(404, "File not found")
         
-        lines = []
+        all_lines = []
         with open(file_path, "r", encoding="utf-8") as f:
             for i, line in enumerate(f):
-                if i >= limit:
-                    break
-                if line.strip():
+                raw = line.strip()
+                if raw:
                     try:
-                        lines.append(json.loads(line))
+                        data = json.loads(raw)
                     except json.JSONDecodeError:
-                        pass
-        return lines
+                        data = None
+                    all_lines.append({"index": i, "data": data, "raw": raw})
+        
+        total = len(all_lines)
+        page = all_lines[offset:offset + limit]
+        return {"lines": page, "total": total}
     
     @app.put("/api/files/jsonl/line")
     def append_jsonl(path: str, data: dict):
@@ -123,7 +135,10 @@ def setup_files_routes(app):
         if ".." in path or path.startswith("/"):
             raise HTTPException(400, "Invalid path")
         root = get_openclaw_dir()
-        file_path = root / path
+        file_path = (root / path).resolve()
+        # Fixed: Path traversal protection - ensure resolved path is within root
+        if not str(file_path).startswith(str(root.resolve())):
+            raise HTTPException(400, "Invalid path")
         file_path.parent.mkdir(parents=True, exist_ok=True)
         
         with open(file_path, "a", encoding="utf-8") as f:
@@ -136,7 +151,10 @@ def setup_files_routes(app):
         if ".." in path or path.startswith("/"):
             raise HTTPException(400, "Invalid path")
         root = get_openclaw_dir()
-        file_path = root / path
+        file_path = (root / path).resolve()
+        # Fixed: Path traversal protection - ensure resolved path is within root
+        if not str(file_path).startswith(str(root.resolve())):
+            raise HTTPException(400, "Invalid path")
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(content, encoding="utf-8")
         return {"success": True}
@@ -149,9 +167,12 @@ def setup_files_routes(app):
             raise HTTPException(503, "qmd not found")
         
         import subprocess
+        import shlex
+        # Fixed: Use shlex.quote() for query sanitization
+        safe_query = shlex.quote(q)
         try:
             result = subprocess.run(
-                [qmd_path, "search", q, "-n", str(limit), "--workspace"],
+                [qmd_path, "search", safe_query, "-n", str(limit), "--workspace"],
                 capture_output=True, text=True, timeout=30
             )
             return {"results": result.stdout.strip().split("\n") if result.stdout else []}

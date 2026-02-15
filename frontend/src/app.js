@@ -310,6 +310,9 @@ async function loadAgentRegistry() {
   populateAgentDropdowns();
 }
 
+var agentColors = { main: '#f97316', atlas: '#3b82f6', jupiter: '#a855f7' };
+function getAgentColor(id) { return agentColors[id] || '#6b7280'; }
+
 function getAgentEmoji(id, name) {
   // Known emojis, fallback to first letter
   var known = { main: '🦞', atlas: '🛠️', jupiter: '💰'};
@@ -361,6 +364,7 @@ function showView(name) {
   if (name === 'dashboard') loadDashboard();
   if (name === 'kanban') loadKanban();
   if (name === 'agents') loadAgents();
+  if (name === 'subagents') loadSubagents();
   if (name === 'calendar') loadCalendar();
   if (name === 'files') loadConfig();
   if (name === 'activity') loadActivity();
@@ -385,7 +389,7 @@ async function loadDashboard() {
       + dashCard('📋', tasks.total || 0, 'Tasks', 'purple')
       + dashCard('🔥', tasks.inProgress || 0, 'In Progress', 'cyan')
       + dashCard('✅', tasks.done || 0, 'Completed', 'green')
-      + dashCard('💾', stats.workspaceSizeMB + ' MB', 'Storage', 'blue')
+      + dashCard('💾', formatSize(stats.workspaceSize || 0), 'Storage', 'blue')
       + dashCard('📝', tasks.backlog || 0, 'Backlog', 'orange');
   } catch (e) {
     document.getElementById('dashboard-stats').innerHTML = '<div class="loading">Error loading stats</div>';
@@ -492,14 +496,7 @@ function renderHealthMetrics(health) {
   diskBar.className = 'health-bar-fill ' + (diskPercent > 80 ? 'critical' : diskPercent > 60 ? 'warning' : 'good');
   diskText.textContent = diskPercent + '% (' + health.disk.usedGB + ' / ' + health.disk.totalGB + ' GB)';
   
-  // Update load average chart
-  var maxLoad = Math.max(health.loadAvg['1min'], health.loadAvg['5min'], health.loadAvg['15min'], 1);
-  document.getElementById('load-1').style.height = Math.min((health.loadAvg['1min'] / maxLoad) * 100, 100) + '%';
-  document.getElementById('load-5').style.height = Math.min((health.loadAvg['5min'] / maxLoad) * 100, 100) + '%';
-  document.getElementById('load-15').style.height = Math.min((health.loadAvg['15min'] / maxLoad) * 100, 100) + '%';
-  document.getElementById('load-1-val').textContent = health.loadAvg['1min'];
-  document.getElementById('load-5-val').textContent = health.loadAvg['5min'];
-  document.getElementById('load-15-val').textContent = health.loadAvg['15min'];
+  // Load average chart removed — only RAM and Disk shown
 }
 
 document.getElementById('btn-refresh-dash').addEventListener('click', loadDashboard);
@@ -759,30 +756,57 @@ async function loadConfig() {
   container.innerHTML = '<div class="loading">Loading configuration...</div>';
   
   try {
-    // Load openclaw.json
-    var res = await fetch(API + '/files/read?path=openclaw.json');
+    // Load openclaw.json via dedicated endpoint
+    var res = await fetch(API + '/openclaw/config');
     if (!res.ok) {
       container.innerHTML = '<div class="error">Could not load configuration</div>';
       return;
     }
     
-    var data = await res.json();
-    var config = JSON.parse(data.content);
-    
+    var config = await res.json();
+    var pretty = JSON.stringify(config, null, 2);
     var html = '<div class="config-card">';
-    html += '<div class="config-header">';
-    html += '<div class="config-icon">⚙️</div>';
-    html += '<div class="config-title">openclaw.json</div>';
+    html += '<div class="config-header" style="display:flex;align-items:center;justify-content:space-between;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;"><span class="config-icon">⚙️</span><span class="config-title">openclaw.json</span></div>';
+    html += '<button id="btn-save-config" class="btn btn-primary" style="font-size:12px;">💾 Save</button>';
     html += '</div>';
     html += '<div class="config-content">';
-    
-    // Pretty print the config
-    html += '<pre class="config-json">' + esc(JSON.stringify(config, null, 2)) + '</pre>';
-    
+    html += '<textarea id="config-editor" spellcheck="false"></textarea>';
     html += '</div>';
     html += '</div>';
     
     container.innerHTML = html;
+    
+    // Initialize CodeMirror for JSON editing
+    var editorEl = document.getElementById('config-editor');
+    if (editorEl) {
+      codeMirrorInstance = CodeMirror.fromTextArea(editorEl, {
+        mode: "application/json",
+        theme: "material-darker",
+        lineNumbers: true,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        indentUnit: 2,
+        tabSize: 2
+      });
+      codeMirrorInstance.setValue(pretty);
+    }
+    
+    document.getElementById('btn-save-config').addEventListener('click', async function() {
+      var content = codeMirrorInstance ? codeMirrorInstance.getValue() : document.getElementById('config-editor').value;
+      try {
+        var parsed = JSON.parse(content); // validate
+        var res = await fetch(API + '/openclaw/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsed),
+        });
+        if (res.ok) toast('Config saved!', 'success');
+        else toast('Save failed', 'error');
+      } catch (e) {
+        toast('Invalid JSON: ' + e.message, 'error');
+      }
+    });
   } catch (e) {
     container.innerHTML = '<div class="error">Error: ' + esc(e.message) + '</div>';
   }
@@ -791,50 +815,6 @@ async function loadConfig() {
 // Keep loadFiles for backward compatibility but it just redirects to config
 async function loadFiles(path) {
   loadConfig();
-}
-
-  try {
-    var res = await fetch(API + '/files?path=' + encodeURIComponent(path));
-    var files = await res.json();
-
-    updateBreadcrumbs(path);
-
-    var html = '';
-
-    if (path) {
-      var parts = path.split('/');
-      parts.pop();
-      var parent = parts.join('/');
-      html += '<div class="file-item" onclick="loadFiles(\'' + escAttr(parent) + '\')">';
-      html += '<span class="file-icon">⬆️</span>';
-      html += '<span class="file-name">..</span>';
-      html += '<span class="file-meta"></span></div>';
-    }
-
-    for (var i = 0; i < files.length; i++) {
-      var f = files[i];
-      var icon = f.is_dir ? '📁' : getFileIcon(f.name);
-      var size = f.size != null ? formatSize(f.size) : '';
-      var modified = f.modified ? formatDateOnly(f.modified) : '';
-
-      if (f.is_dir) {
-        html += '<div class="file-item" onclick="loadFiles(\'' + escAttr(f.path) + '\')">'
-          + '<span class="file-icon">' + icon + '</span>'
-          + '<span class="file-name">' + esc(f.name) + '</span>'
-          + '<span class="file-meta">' + modified + '</span></div>';
-      } else {
-        html += '<div class="file-item" onclick="openFile(\'' + escAttr(f.path) + '\')">'
-          + '<span class="file-icon">' + icon + '</span>'
-          + '<span class="file-name">' + esc(f.name) + '</span>'
-          + '<span class="file-meta file-size">' + size + '</span>'
-          + '<span class="file-meta">' + modified + '</span></div>';
-      }
-    }
-
-    fileList.innerHTML = html || '<div class="loading">Empty directory</div>';
-  } catch (e) {
-    fileList.innerHTML = '<div class="loading">Error: ' + esc(e.message) + '</div>';
-  }
 }
 
 function updateBreadcrumbs(path) {
@@ -912,8 +892,27 @@ async function openFile(path) {
     currentEditPath = path;
 
     document.getElementById('editor-title').textContent = data.name;
-    document.getElementById('editor').value = data.content;
     document.getElementById('editor-status').textContent = data.type + ' · ' + path;
+
+    // Determine CodeMirror mode based on file extension
+    var mode = "text/plain";
+    if (path.endsWith('.js') || path.endsWith('.jsx') || path.endsWith('.ts') || path.endsWith('.tsx')) {
+      mode = "javascript";
+    } else if (path.endsWith('.py')) {
+      mode = "python";
+    } else if (path.endsWith('.json') || path.endsWith('.jsonl')) {
+      mode = "application/json";
+    } else if (path.endsWith('.md') || path.endsWith('.markdown')) {
+      mode = "markdown";
+    } else if (path.endsWith('.html') || path.endsWith('.htm')) {
+      mode = "htmlmixed";
+    } else if (path.endsWith('.css')) {
+      mode = "css";
+    } else if (path.endsWith('.sql')) {
+      mode = "sql";
+    } else if (path.endsWith('.xml') || path.endsWith('.yaml') || path.endsWith('.yml')) {
+      mode = "application/xml";
+    }
 
     // Markdown preview support
     var isMarkdown = data.type === 'markdown' || path.endsWith('.md');
@@ -936,6 +935,25 @@ async function openFile(path) {
       editorContainer.style.display = '';
       preview.style.display = 'none';
       toggleBtn.textContent = '👁️ Preview';
+      
+      // Initialize or update CodeMirror for code files
+      var editorEl = document.getElementById('editor');
+      if (editorEl) {
+        if (codeMirrorInstance) {
+          codeMirrorInstance.setValue(data.content);
+          codeMirrorInstance.setOption("mode", mode);
+        } else {
+          codeMirrorInstance = CodeMirror.fromTextArea(editorEl, {
+            mode: mode,
+            theme: "material-darker",
+            lineNumbers: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            indentUnit: 2,
+            tabSize: 2
+          });
+        }
+      }
     }
 
     document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
@@ -949,6 +967,7 @@ async function openFile(path) {
 
 var editorIsMarkdown = false;
 var editorPreviewMode = false;
+var codeMirrorInstance = null;
 
 function parseMarkdown(md) {
   var html = md;
@@ -1068,6 +1087,14 @@ document.getElementById('btn-close-editor').addEventListener('click', function()
 
 // ── Agents ─────────────────────────────────────────────────────────
 
+// Agent roles mapping (matches backend AGENT_ROLES)
+var AGENT_ROLES = {
+  "main": "Executive Assistant",
+  "atlas": "Coding Specialist",
+  "jupiter": "Finance Analyst",
+  "jarvis": "General Agent"
+};
+
 async function loadAgents() {
   var list = document.getElementById('agent-list');
   list.innerHTML = '<div class="loading">Loading agents...</div>';
@@ -1077,7 +1104,7 @@ async function loadAgents() {
     var agents = await res.json();
     var html = '';
     for (var i = 0; i < agents.length; i++) {
-      html += renderAgentCard(agents[i], false);
+      html += renderAgentCard(agents[i], false, AGENT_ROLES);
     }
     list.innerHTML = html || '<div class="loading">No agents configured</div>';
   } catch (e) {
@@ -1085,57 +1112,135 @@ async function loadAgents() {
   }
 }
 
-function renderAgentCard(agent, compact) {
+function renderAgentCard(agent, compact, agentRoles) {
   var emoji = getAgentEmoji(agent.id, agent.name);
-  var modelStr = typeof agent.model === 'object' ? JSON.stringify(agent.model) : String(agent.model);
-
-  var thinkingBadge;
-  var thinkingContent = '';
+  var modelStr = typeof agent.model === 'object' ? JSON.stringify(agent.model) : String(agent.model || '');
   
-  if (agent.thinking) {
-    thinkingBadge = '<span class="thinking-badge"><span class="thinking-dot"></span> Working</span>';
-    // Show thinking content if available
-    if (agent.thinkingContent) {
-      thinkingContent = '<div class="agent-thinking-content">' + esc(agent.thinkingContent) + '</div>';
-    }
-  } else {
-    thinkingBadge = '<span class="idle-badge">⚡ Ready</span>';
+  // Get agent role from roles object (default to "Agent" if not found)
+  var role = agentRoles && agentRoles[agent.id] || "Agent";
+
+  var isActive = agent.status === 'active';
+  var statusDot = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (isActive ? '#22c55e' : '#6b7280') + ';margin-right:6px;"></span>';
+  var statusText = isActive ? 'Active' : 'Inactive';
+
+  // Format last active from ageMs
+  var lastActive = '';
+  if (agent.ageMs != null) {
+    var mins = Math.floor(agent.ageMs / 60000);
+    if (mins < 1) lastActive = 'just now';
+    else if (mins < 60) lastActive = mins + 'm ago';
+    else if (mins < 1440) lastActive = Math.floor(mins / 60) + 'h ago';
+    else lastActive = Math.floor(mins / 1440) + 'd ago';
   }
 
-  var statusClass = agent.hasAgentDir ? 'status-online' : 'status-offline';
-  var statusText = agent.hasAgentDir ? 'Active' : 'Inactive';
-
-  var taskLine = '';
-  if (agent.activeTask) {
-    taskLine = '<div class="agent-active-task"><span class="task-label">Working on:</span><span class="task-value">' + esc(agent.activeTask) + '</span></div>';
-  }
-
-  // Premium card design
-  var html = '<div class="agent-card clickable ' + (agent.thinking ? 'thinking' : '') + '" onclick="openAgentDialog(\'' + escAttr(agent.id) + '\', \'' + escAttr(agent.name) + '\')">'
+  var html = '<div class="agent-card clickable" onclick="openAgentDialog(\'' + escAttr(agent.id) + '\', \'' + escAttr(agent.name) + '\')">'
     + '<div class="agent-card-header">'
     + '<div class="agent-avatar-large">' + emoji + '</div>'
     + '<div class="agent-info">'
     + '<div class="agent-name">' + esc(agent.name) + '</div>'
-    + '<div class="agent-role">' + esc(agent.role || agent.id) + '</div>'
+    + '<div class="agent-role">' + statusDot + statusText + '</div>'
     + '</div>'
-    + '<div class="agent-status ' + statusClass + '">' + statusText + '</div>'
     + '</div>'
-    + '<div class="agent-card-body">'
-    + thinkingBadge
-    + thinkingContent;
+    + '<div class="agent-card-body">';
 
   if (!compact) {
-    if (agent.description) {
-      html += '<div class="agent-description">' + esc(agent.description) + '</div>';
-    }
     html += '<div class="agent-meta">';
-    html += '<div class="meta-item"><span class="meta-label">Model</span><span class="meta-value">' + esc(modelStr.substring(0, 30)) + '</span></div>';
-    html += '<div class="meta-item"><span class="meta-label">Tasks</span><span class="meta-value">' + (agent.taskCount || 0) + '</span></div>';
+    html += '<div class="meta-item"><span class="meta-label">Model</span><span class="meta-value">' + esc(modelStr.length > 30 ? modelStr.substring(0, 30) + '…' : modelStr) + '</span></div>';
+    html += '<div class="meta-item"><span class="meta-label">Role</span><span class="meta-value" style="font-size:12px;opacity:0.7;">' + esc(role) + '</span></div>';
+    html += '<div class="meta-item"><span class="meta-label">Messages</span><span class="meta-value">' + (agent.messageCount || 0) + '</span></div>';
+    if (lastActive) html += '<div class="meta-item"><span class="meta-label">Last Active</span><span class="meta-value">' + esc(lastActive) + '</span></div>';
     html += '</div>';
+    if (agent.sessionKey) {
+      html += '<div style="font-size:10px;color:var(--text-muted);margin-top:6px;font-family:monospace;opacity:0.6;">' + esc(agent.sessionKey) + '</div>';
+    }
+  } else {
+    if (lastActive) html += '<div style="font-size:11px;color:var(--text-dim);">' + esc(lastActive) + '</div>';
   }
 
-  html += taskLine;
   html += '</div></div>';
+  return html;
+}
+
+// ── Subagents ──────────────────────────────────────────────────────
+
+function formatTimeAgo(timestampMs) {
+  if (!timestampMs) return 'Never';
+  var now = Date.now();
+  var diff = now - timestampMs;
+  var mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  else if (mins < 60) return mins + 'm ago';
+  else if (mins < 1440) return Math.floor(mins / 60) + 'h ago';
+  else return Math.floor(mins / 1440) + 'd ago';
+}
+
+async function loadSubagents() {
+  var list = document.getElementById('subagent-list');
+  list.innerHTML = '<div class="loading">Loading subagents...</div>';
+
+  try {
+    var res = await fetch(API + '/sessions');
+    var sessions = await res.json();
+    var subagents = sessions.filter(function(s) {
+      return s.isSubagent;
+    });
+    
+    var html = '';
+    if (subagents.length > 0) {
+      for (var i = 0; i < subagents.length; i++) {
+        html += renderSubagentCard(subagents[i]);
+      }
+    } else {
+      html = '<div class="loading" style="text-align:center;padding:40px;">No active subagents</div>';
+    }
+    list.innerHTML = html;
+  } catch (e) {
+    list.innerHTML = '<div class="loading">Error: ' + esc(e.message) + '</div>';
+  }
+}
+
+function renderSubagentCard(session) {
+  var sessionId = session.id;
+  var shortId = sessionId.length > 20 ? sessionId.substring(0, 17) + '...' : sessionId;
+  var agentId = session.agentId || 'unknown';
+  var model = session.model || 'unknown';
+  var channel = session.channel || 'unknown';
+  var contextTokens = session.contextTokens || 0;
+  var totalTokens = session.totalTokens || 0;
+  var updatedAt = session.updatedAt || 0;
+  var runCount = session.runCount || null;
+  
+  var timeAgo = formatTimeAgo(updatedAt);
+  
+  var tokenInfo = '';
+  if (totalTokens > 0) {
+    tokenInfo = '<div class="meta-item"><span class="meta-label">Tokens</span><span class="meta-value">' + contextTokens + ' → ' + totalTokens + '</span></div>';
+  }
+  
+  var runInfo = '';
+  if (runCount !== null && runCount > 1) {
+    runInfo = '<div class="meta-item"><span class="meta-label">Runs</span><span class="meta-value">' + runCount + '</span></div>';
+  }
+
+  var html = '<div class="agent-card clickable" style="opacity:0.9;">'
+    + '<div class="agent-card-header">'
+    + '<div class="agent-avatar-large">🤖</div>'
+    + '<div class="agent-info">'
+    + '<div class="agent-name">' + esc(agentId) + '</div>'
+    + '<div class="agent-role"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6;margin-right:6px;"></span>Subagent</div>'
+    + '</div>'
+    + '</div>'
+    + '<div class="agent-card-body">'
+    + '<div class="agent-meta">';
+  html += '<div class="meta-item"><span class="meta-label">Model</span><span class="meta-value">' + esc(model.length > 30 ? model.substring(0, 30) + '…' : model) + '</span></div>';
+  html += '<div class="meta-item"><span class="meta-label">Channel</span><span class="meta-value">' + esc(channel) + '</span></div>';
+  html += tokenInfo;
+  html += runInfo;
+  html += '<div class="meta-item"><span class="meta-label">Updated</span><span class="meta-value">' + esc(timeAgo) + '</span></div>';
+  html += '</div>';
+  html += '<div style="font-size:9px;color:var(--text-muted);margin-top:6px;font-family:monospace;opacity:0.5;">' + esc(shortId) + '</div>';
+  html += '</div></div>';
+  
   return html;
 }
 
@@ -1183,6 +1288,7 @@ document.getElementById('btn-agent-workspace').addEventListener('click', functio
 });
 
 document.getElementById('btn-refresh-agents').addEventListener('click', loadAgents);
+document.getElementById('btn-refresh-subagents').addEventListener('click', loadSubagents);
 
 // ── JSONL Viewer ───────────────────────────────────────────────────
 
@@ -1572,11 +1678,39 @@ var calJobs = [];
 var calViewMode = 'week'; // 'week' or 'timeline'
 var calAgentFilter = '';
 
+function parseCronDays(expr) {
+  // Parse day-of-week field from cron expression (5th field, 0=Sun..6=Sat)
+  var parts = (expr || '').split(/\s+/);
+  if (parts.length < 5) return [];
+  var dow = parts[4];
+  if (dow === '*') return [0,1,2,3,4,5,6];
+  var days = [];
+  var segments = dow.split(',');
+  for (var s = 0; s < segments.length; s++) {
+    var seg = segments[s];
+    if (seg.indexOf('-') !== -1) {
+      var range = seg.split('-');
+      for (var d = parseInt(range[0]); d <= parseInt(range[1]); d++) days.push(d);
+    } else if (seg.match(/^\d+$/)) {
+      days.push(parseInt(seg));
+    }
+  }
+  return days;
+}
+
 async function loadCalendar() {
   try {
     var res = await fetch(API + '/calendar/jobs');
     var data = await res.json();
-    calJobs = data.jobs || [];
+    calJobs = Array.isArray(data) ? data : (data.jobs || []);
+    // Compute daysOfWeek from cron expression if not present
+    for (var j = 0; j < calJobs.length; j++) {
+      var cj = calJobs[j];
+      if (!cj.daysOfWeek && cj.schedule && cj.schedule.expr) {
+        cj.daysOfWeek = parseCronDays(cj.schedule.expr);
+      }
+      if (!cj.jobId) cj.jobId = cj.id || ('job-' + j);
+    }
   } catch (e) {
     calJobs = [];
   }
@@ -1665,8 +1799,9 @@ function renderCalendar() {
     for (var j = 0; j < dayJobs.length; j++) {
       var job = dayJobs[j];
       var enabledClass = job.enabled !== false ? 'cal-job-enabled' : 'cal-job-disabled';
+      var chipAgent = job.agent ? (' · ' + esc(job.agent)) : '';
       html += '<div class="cal-job-chip ' + enabledClass + '" title="' + escAttr(job.scheduleDesc || '') + '">'
-        + esc(job.name || job.jobId || 'Job') + '</div>';
+        + esc(job.name || job.jobId || 'Job') + chipAgent + '</div>';
     }
     if (!dayJobs.length) {
       html += '<div class="cal-empty">—</div>';
@@ -1730,6 +1865,7 @@ function renderJobList() {
         ? '<span class="cal-badge cal-badge-active">Active</span>'
         : '<span class="cal-badge cal-badge-disabled">Disabled</span>';
       var targetBadge = '<span class="cal-badge cal-badge-target">' + esc(job.sessionTarget || '?') + '</span>';
+      var agentBadge = job.agent ? '<span class="cal-badge" style="background:' + (getAgentColor(job.agent) || '#6b7280') + ';color:#fff;">' + esc(job.agent) + '</span>' : '';
       var payloadKind = (job.payload || {}).kind || '?';
 
       html += '<div class="cal-job-row">'
@@ -1737,7 +1873,7 @@ function renderJobList() {
         + '<div class="cal-job-name">' + esc(job.name || job.jobId || 'Untitled') + '</div>'
         + '<div class="cal-job-meta">' + esc(job.scheduleDesc || '') + ' · ' + esc(payloadKind) + '</div>'
         + '</div>'
-        + '<div class="cal-job-badges">' + statusBadge + targetBadge + '</div>'
+        + '<div class="cal-job-badges">' + agentBadge + statusBadge + targetBadge + '</div>'
         + '</div>';
     }
   }
@@ -1787,9 +1923,7 @@ function renderTimeline() {
     }
   }
 
-  // Agent colors
-  var agentColors = { main: '#f97316', atlas: '#3b82f6', jupiter: '#a855f7' };
-  function getAgentColor(id) { return agentColors[id] || '#6b7280'; }
+  // Agent colors (use global)
 
   var html = '<div class="cal-timeline">';
   html += '<div class="cal-tl-header">';
@@ -1868,7 +2002,7 @@ function renderTimeline() {
     }
     for (var j = 0; j < jobs.length; j++) {
       var job = jobs[j];
-      var color = getAgentColor(job.agentId);
+      var color = getAgentColor(job.agent);
       var payload = (job.payload || {}).kind || '';
       var icon = payload === 'agentTurn' ? '🤖' : '⚡';
       html += '<div class="cal-tl-card" style="border-left-color:' + color + '">'
@@ -1877,7 +2011,7 @@ function renderTimeline() {
         + '<span class="cal-tl-card-name">' + esc(job.name || 'Untitled') + '</span>'
         + '</div>'
         + '<div class="cal-tl-card-meta">'
-        + '<span class="cal-tl-card-agent" style="color:' + color + '">' + esc(job.agentId || '?') + '</span>'
+        + '<span class="cal-tl-card-agent" style="color:' + color + '">' + esc(job.agent || '?') + '</span>'
         + '<span class="cal-tl-card-type">' + esc(payload) + '</span>'
         + (job.sessionTarget ? '<span class="cal-tl-card-target">' + esc(job.sessionTarget) + '</span>' : '')
         + '</div>'
@@ -1932,7 +2066,9 @@ async function loadActivity() {
     var res = await fetch(API + '/activity' + params);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
-    renderActivity(data.entries || [], data.total || 0);
+    // Backend returns flat array
+    var entries = Array.isArray(data) ? data : (data.entries || []);
+    renderActivity(entries, entries.length);
   } catch (e) {
     container.innerHTML = '<div class="loading" style="color:var(--red)">Error loading activity: ' + esc(e.message) + '</div>';
   }
@@ -1949,28 +2085,27 @@ function renderActivity(entries, total) {
     return;
   }
 
+  var typeIcons = { session: '💬', cron: '⏰', spawn: '🚀' };
   var html = '<div class="activity-count">' + total + ' total entries</div>';
   for (var i = 0; i < entries.length; i++) {
     var e = entries[i];
-    var actionIcon = getActionIcon(e.action);
+    var icon = typeIcons[e.type] || '📌';
     var agentLabel = getAgentLabel(e.agent);
-    var statusClass = e.status === 'success' ? 'activity-success' : e.status === 'error' ? 'activity-error' : 'activity-info';
     var timeStr = e.timestamp ? formatIST(e.timestamp) : '';
-    var durationStr = e.duration_ms > 0 ? e.duration_ms + 'ms' : '';
+    var modelStr = e.model ? esc(e.model) : '';
 
-    html += '<div class="activity-entry ' + statusClass + '">'
-      + '<div class="activity-icon">' + actionIcon + '</div>'
+    html += '<div class="activity-entry activity-info">'
+      + '<div class="activity-icon">' + icon + '</div>'
       + '<div class="activity-body">'
       + '<div class="activity-main">'
-      + '<span class="activity-action">' + esc(e.action) + '</span>'
-      + '<span class="activity-target">' + esc(e.target) + '</span>'
+      + '<span class="activity-agent" style="font-weight:600;">' + agentLabel + '</span>'
+      + '<span class="activity-action" style="margin-left:6px;opacity:0.7;">' + esc(e.type || 'session') + '</span>'
       + '</div>'
       + '<div class="activity-meta">'
-      + '<span class="activity-agent">' + agentLabel + '</span>'
-      + (durationStr ? '<span class="activity-duration">' + durationStr + '</span>' : '')
       + '<span class="activity-time">' + esc(timeStr) + '</span>'
+      + (modelStr ? '<span class="activity-duration" style="font-size:11px;opacity:0.6;">' + modelStr + '</span>' : '')
       + '</div>'
-      + (e.details ? '<div class="activity-details">' + esc(e.details) + '</div>' : '')
+      + (e.content ? '<div class="activity-details">' + esc(e.content) + '</div>' : '')
       + '</div>'
       + '</div>';
   }
@@ -2216,7 +2351,8 @@ function getFileIcon(name) {
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1048576).toFixed(1) + ' MB';
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+  return (bytes / 1073741824).toFixed(1) + ' GB';
 }
 
 function esc(str) {

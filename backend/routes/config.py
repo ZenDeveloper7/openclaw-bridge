@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from fastapi import HTTPException
 
-from config import DASHBOARD_CONFIG_FILE
+from config import DASHBOARD_CONFIG_FILE, OPENCLAW_CONFIG
 from models import DashboardConfig, ConfigPatch
 
 
@@ -49,3 +49,22 @@ def setup_config_routes(app):
         
         _save_dashboard_config(config)
         return config
+    
+    @app.get("/api/openclaw/config")
+    def get_openclaw_config():
+        """Read openclaw.json."""
+        if not OPENCLAW_CONFIG.exists():
+            raise HTTPException(404, "openclaw.json not found")
+        try:
+            return json.loads(OPENCLAW_CONFIG.read_text())
+        except Exception as e:
+            raise HTTPException(500, str(e))
+    
+    @app.put("/api/openclaw/config")
+    def save_openclaw_config(body: dict):
+        """Save openclaw.json."""
+        try:
+            OPENCLAW_CONFIG.write_text(json.dumps(body, indent=2))
+            return {"success": True}
+        except Exception as e:
+            raise HTTPException(500, str(e))

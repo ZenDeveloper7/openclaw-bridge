@@ -2,6 +2,7 @@
 
 import subprocess
 import asyncio
+import shlex
 from pathlib import Path
 from fastapi import HTTPException
 
@@ -24,17 +25,24 @@ def setup_terminal_routes(app):
             "openclaw", "npx"
         ]
         
+        # Fixed: Use shlex.split to safely parse command (no shell=True)
+        command_list = shlex.split(cmd.command.strip())
+        
+        if not command_list:
+            raise HTTPException(400, "Empty command")
+        
         # Extract base command
-        base_cmd = cmd.command.strip().split()[0] if cmd.command.strip() else ""
+        base_cmd = command_list[0]
         
         if base_cmd not in allowed_commands:
             raise HTTPException(403, f"Command not allowed: {base_cmd}")
         
         try:
             workdir = cmd.workdir or str(Path.home())
+            # Fixed: Pass command as list, shell=False (default)
             result = subprocess.run(
-                cmd.command,
-                shell=True,
+                command_list,
+                shell=False,
                 cwd=workdir,
                 capture_output=True,
                 text=True,
