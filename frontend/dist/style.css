@@ -3009,3 +3009,110 @@ body.matrix-mode::before {
   width: 24px;
   text-align: center;
 }
+
+/* ── Responsive & Mobile ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Mobile nav toggle */
+  #mobile-nav-toggle {
+    display: flex;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 30;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+
+  #sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+  }
+  #sidebar-overlay.active { display: block; }
+
+  /* Top bar adjustments */
+  #top-bar {
+    padding: 0 12px;
+    height: 48px;
+    gap: 8px;
+  }
+  .top-left { order: 1; }
+  .top-nav { order: 3; }
+  .top-right { order: 2; margin-left: auto; }
+
+  .logo-text { font-size: 14px; }
+  #stat-working, #stat-idle, #stat-ram, #stat-disk { font-size: 11px; }
+
+  .top-nav {
+    position: fixed;
+    top: 48px;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px;
+    z-index: 25;
+  }
+  .top-nav.active { display: flex; }
+
+  .top-nav .nav-btn {
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  /* Stats row wrap */
+  .stats-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .stat { font-size: 11px; }
+
+  /* Kanban full width vertical on mobile */
+  .kanban-wrapper {
+    overflow-x: hidden;
+    padding: 0;
+  }
+  .kanban-board {
+    flex-direction: column;
+    height: auto;
+    gap: 12px;
+  }
+  .kanban-column {
+    min-width: 100%;
+    max-width: 100%;
+    flex: none;
+  }
+
+  /* Agent grid single column */
+  .agent-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Modal full width on mobile */
+  .modal-content {
+    margin: 8px;
+    width: auto;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  /* Smaller padding in views */
+  #content { padding: 12px; }
+  .view-header { margin-bottom: 12px; }
+}

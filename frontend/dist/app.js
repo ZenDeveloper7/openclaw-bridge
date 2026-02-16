@@ -2204,13 +2204,48 @@ async function init() {
   // loadDashboard(); // removed
   loadKanban();
   updateTopBarStats();
-  setInterval(updateTopBarStats, 30000); // refresh every 30s
-  try {
-    var res = await fetch(API + '/stats');
-    var stats = await res.json();
-    var vb = document.getElementById('version-badge');
-    if (vb) vb.textContent = stats.version;
-  } catch (e) {}
+  setInterval(updateTopBarStats, 15000); // refresh every 15s
 }
 
 init();
+
+// ── Mobile Navigation ────────────────────────────────────────────────
+(function() {
+  var toggle = document.getElementById('mobile-nav-toggle');
+  var overlay = document.getElementById('sidebar-overlay');
+  var topNav = document.querySelector('.top-nav');
+  if (!toggle || !overlay || !topNav) return;
+
+  function openMenu() {
+    topNav.classList.add('active');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeMenu() {
+    topNav.classList.remove('active');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  toggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    topNav.classList.contains('active') ? closeMenu() : openMenu();
+  });
+
+  overlay.addEventListener('click', closeMenu);
+
+  // Close when clicking a nav button
+  topNav.querySelectorAll('.nav-btn').forEach(function(btn) {
+    btn.addEventListener('click', closeMenu);
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && topNav.classList.contains('active')) closeMenu();
+  });
+
+  // Handle resize: ensure menu is closed when moving to desktop
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) closeMenu();
+  });
+})();
