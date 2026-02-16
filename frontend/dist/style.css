@@ -770,6 +770,38 @@ body {
   border-radius: var(--radius);
   padding: 16px;
   transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  padding: 2px;
+  background: linear-gradient(135deg, var(--accent), transparent, var(--accent-dim));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.agent-card:hover::before { opacity: 1; }
+
+.agent-card.working {
+  box-shadow: 0 0 16px var(--accent-dim), inset 0 0 12px rgba(249, 115, 22, 0.05);
+}
+
+.agent-card.working .agent-avatar-large {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0); }
 }
 
 .agent-card:hover { border-color: var(--border-light); }
@@ -881,18 +913,20 @@ body {
   flex: 1;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 0 12px 12px 12px;
+  padding: 0 0 12px 0; /* remove side padding for full width */
 }
 
 .kanban-board {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   min-height: 400px;
-  height: calc(100vh - 240px);
+  height: calc(100vh - 220px);
 }
 
 .kanban-column {
-  flex: 0 0 300px;
+  flex: 1 1 0; /* equal width columns */
+  min-width: 260px; /* prevent too narrow */
+  max-width: none;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

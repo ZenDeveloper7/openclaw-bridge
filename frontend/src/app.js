@@ -366,7 +366,6 @@ function showView(name) {
   if (name === 'subagents') loadSubagents();
   if (name === 'calendar') loadCalendar();
   if (name === 'activity') loadActivity();
-  if (name === 'security') loadSecurity();
 }
 
 
@@ -1039,7 +1038,7 @@ function renderAgentCard(agent, compact, agentRoles) {
     else lastActive = Math.floor(mins / 1440) + 'd ago';
   }
 
-  var html = '<div class="agent-card">'
+  var html = '<div class="agent-card' + (agent.working ? ' working' : '') + '">'
     + '<div class="agent-card-header">'
     + '<div class="agent-avatar-large">' + emoji + '</div>'
     + '<div class="agent-info">'
@@ -1432,127 +1431,8 @@ function syntaxHighlight(json) {
   return escaped;
 }
 
-// ── Security Panel ─────────────────────────────────────────────────
+// Security Panel removed
 
-var securityPollTimer = null;
-
-async function loadSecurity() {
-  stopSecurityPolling();
-
-  try {
-    var res = await fetch(API + '/security');
-    var data = await res.json();
-    renderSecurityThreats(data.threats);
-    renderTailscale(data.tailscale);
-    renderSSH(data.ssh);
-    renderAuthEvents(data.authEvents);
-  } catch (e) {
-    document.getElementById('security-threats').innerHTML = '<div class="loading">Error loading security data</div>';
-  }
-
-  startSecurityPolling();
-}
-
-function startSecurityPolling() {
-  stopSecurityPolling();
-  securityPollTimer = setInterval(function() {
-    if (!document.getElementById('view-security').classList.contains('active')) { stopSecurityPolling(); return; }
-    loadSecurity();
-  }, 30000);
-}
-
-function stopSecurityPolling() { if (securityPollTimer) { clearInterval(securityPollTimer); securityPollTimer = null; } }
-
-function renderSecurityThreats(threats) {
-  var levelColors = { low: 'green', medium: 'yellow', high: 'red' };
-  var levelEmoji = { low: '🟢', medium: '🟡', high: '🔴' };
-  var color = levelColors[threats.level] || 'green';
-  var emoji = levelEmoji[threats.level] || '🟢';
-
-  var html = '<div class="threat-summary">'
-    + '<div class="threat-level-card threat-' + color + '">'
-    + '<span class="threat-emoji">' + emoji + '</span>'
-    + '<span class="threat-label">Threat Level</span>'
-    + '<span class="threat-value">' + threats.level.toUpperCase() + '</span>'
-    + '</div>'
-    + '<div class="threat-stat-card">'
-    + '<span class="threat-stat-icon">🔑</span>'
-    + '<span class="threat-stat-value">' + threats.failedSSH + '</span>'
-    + '<span class="threat-stat-label">Failed SSH (24h)</span>'
-    + '</div>'
-    + '<div class="threat-stat-card">'
-    + '<span class="threat-stat-icon">🚫</span>'
-    + '<span class="threat-stat-value">' + threats.blockedMessages + '</span>'
-    + '<span class="threat-stat-label">Blocked Messages</span>'
-    + '</div>'
-    + '</div>';
-
-  document.getElementById('security-threats').innerHTML = html;
-}
-
-function renderTailscale(ts) {
-  var container = document.getElementById('security-tailscale');
-  if (ts.status === 'off') {
-    container.innerHTML = '<div class="sec-detail"><span class="sec-label">Status</span><span class="sec-value" style="color:var(--text-muted)">Off / Not installed</span></div>';
-    return;
-  }
-
-  var statusColor = ts.status === 'active' ? 'var(--green)' : 'var(--yellow)';
-  container.innerHTML = ''
-    + '<div class="sec-detail"><span class="sec-label">Status</span><span class="sec-value" style="color:' + statusColor + '">● ' + esc(ts.status) + '</span></div>'
-    + '<div class="sec-detail"><span class="sec-label">Hostname</span><span class="sec-value">' + esc(ts.hostname) + '</span></div>'
-    + '<div class="sec-detail"><span class="sec-label">IP</span><span class="sec-value" style="font-family:monospace">' + esc(ts.ip) + '</span></div>'
-    + '<div class="sec-detail"><span class="sec-label">Peers</span><span class="sec-value">' + ts.peers + ' online / ' + (ts.totalPeers || 0) + ' total</span></div>';
-}
-
-function renderSSH(ssh) {
-  var container = document.getElementById('security-ssh');
-  if (!ssh.recent || !ssh.recent.length) {
-    container.innerHTML = '<div class="loading" style="padding:14px; font-size:12px;">No SSH events found</div>';
-    return;
-  }
-
-  var html = '<div class="ssh-list">';
-  for (var i = ssh.recent.length - 1; i >= 0; i--) {
-    var ev = ssh.recent[i];
-    var statusClass = ev.success ? 'ssh-ok' : 'ssh-fail';
-    var statusIcon = ev.success ? '✅' : '❌';
-    html += '<div class="ssh-entry ' + statusClass + '">'
-      + '<span class="ssh-time">' + esc(ev.timestamp) + '</span>'
-      + '<span class="ssh-icon">' + statusIcon + '</span>'
-      + '<span class="ssh-user">' + esc(ev.user || '—') + '</span>'
-      + '<span class="ssh-ip">' + esc(ev.ip || '—') + '</span>'
-      + '<span class="ssh-msg">' + esc(ev.message || '') + '</span>'
-      + '</div>';
-  }
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-function renderAuthEvents(events) {
-  var container = document.getElementById('security-auth');
-  if (!events || !events.length) {
-    container.innerHTML = '<div class="loading" style="padding:14px; font-size:12px;">No auth events found</div>';
-    return;
-  }
-
-  var html = '<div class="auth-event-list">';
-  for (var i = events.length - 1; i >= 0; i--) {
-    var ev = events[i];
-    var typeClass = ev.type === 'blocked' ? 'auth-blocked' : ev.type === 'pairing' ? 'auth-pairing' : 'auth-info';
-    var typeIcon = ev.type === 'blocked' ? '🚫' : ev.type === 'pairing' ? '🔗' : 'ℹ️';
-    html += '<div class="auth-event ' + typeClass + '">'
-      + '<span class="auth-time">' + esc(ev.timestamp) + '</span>'
-      + '<span class="auth-icon">' + typeIcon + '</span>'
-      + '<span class="auth-type">' + esc(ev.type) + '</span>'
-      + '<span class="auth-msg">' + esc(ev.message) + '</span>'
-      + '</div>';
-  }
-  html += '</div>';
-  container.innerHTML = html;
-}
-
-document.getElementById('btn-refresh-security').addEventListener('click', loadSecurity);
 
 // ── Calendar View ──────────────────────────────────────────────────
 
@@ -2028,7 +1908,6 @@ var PALETTE_COMMANDS = [
   { icon: '🤖', label: 'Agents', hint: 'Agent sessions', action: function() { switchView('agents'); } },
   { icon: '📅', label: 'Calendar', hint: 'Scheduled cron jobs', action: function() { switchView('calendar'); } },
   { icon: '📊', label: 'Activity', hint: 'Activity feed', action: function() { switchView('activity'); } },
-  { icon: '🛡️', label: 'Security', hint: 'Security panel', action: function() { switchView('security'); } },
   { icon: '➕', label: 'New Task', hint: 'Create a task', action: function() { closePalette(); openNewTask('backlog'); } },
   { icon: '🔄', label: 'Refresh', hint: 'Reload current view', action: function() { refreshCurrentView(); } },
 ];

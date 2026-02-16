@@ -89,14 +89,27 @@ def _describe_cron(expr: str) -> str:
         if minute == '0' and hour == '0' and dom == '*' and month == '*' and dow == '*':
             return "Daily at midnight"
         
-        # Weekly on specific day(s): 0 0 * * 1,3,5 (Mon,Wed,Fri)
-        if minute == '0' and hour == '0' and dom == '*' and month == '*' and dow != '*':
+        # Weekly on specific day(s) at specific time: N H * * D (e.g., 0 19 * * 0)
+        if minute != '*' and hour != '*' and dom == '*' and month == '*' and dow != '*':
             days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
             try:
                 dow_nums = [int(x) for x in dow.split(',')]
                 day_names = [days[d] for d in dow_nums if 0 <= d <= 6]
                 if day_names:
-                    return f"Weekly on {', '.join(day_names)}"
+                    h = int(hour)
+                    m = int(minute)
+                    time_str = f"{h:02d}:{m:02d}"
+                    return f"Weekly on {', '.join(day_names)} at {time_str}"
+            except:
+                pass
+        
+        # Weekly all days (every day at specific time): N H * * *
+        if minute != '*' and hour != '*' and dom == '*' and month == '*' and dow == '*':
+            try:
+                h = int(hour)
+                m = int(minute)
+                time_str = f"{h:02d}:{m:02d}"
+                return f"Daily at {time_str}"
             except:
                 pass
         
