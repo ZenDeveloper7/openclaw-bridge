@@ -1,3 +1,4 @@
+(function() {
 /* OpenClaw Control Board — Frontend v2 */
 
 const API = window.location.port === '5173'
@@ -626,80 +627,6 @@ document.getElementById('btn-task-delete').addEventListener('click', async funct
 document.getElementById('task-modal').addEventListener('click', function(e) {
   if (e.target === this) closeTaskModal();
 });
-
-// ── Configuration View ──────────────────────────────────────────────
-
-async function loadConfig() {
-  var container = document.getElementById('config-view');
-  if (!container) {
-    // Fallback to files if element doesn't exist
-    loadFiles('');
-    return;
-  }
-  
-  container.innerHTML = '<div class="loading">Loading configuration...</div>';
-  
-  try {
-    // Load openclaw.json via dedicated endpoint
-    var res = await fetch(API + '/openclaw/config');
-    if (!res.ok) {
-      container.innerHTML = '<div class="error">Could not load configuration</div>';
-      return;
-    }
-    
-    var config = await res.json();
-    var pretty = JSON.stringify(config, null, 2);
-    var html = '<div class="config-card">';
-    html += '<div class="config-header" style="display:flex;align-items:center;justify-content:space-between;">';
-    html += '<div style="display:flex;align-items:center;gap:8px;"><span class="config-icon">⚙️</span><span class="config-title">openclaw.json</span></div>';
-    html += '<button id="btn-save-config" class="btn btn-primary" style="font-size:12px;">💾 Save</button>';
-    html += '</div>';
-    html += '<div class="config-content">';
-    html += '<textarea id="config-editor" spellcheck="false"></textarea>';
-    html += '</div>';
-    html += '</div>';
-    
-    container.innerHTML = html;
-    
-    // Initialize CodeMirror for JSON editing
-    var editorEl = document.getElementById('config-editor');
-    if (editorEl) {
-      codeMirrorInstance = CodeMirror.fromTextArea(editorEl, {
-        mode: "application/json",
-        theme: "material-darker",
-        lineNumbers: true,
-        matchBrackets: true,
-        autoCloseBrackets: true,
-        indentUnit: 2,
-        tabSize: 2
-      });
-      codeMirrorInstance.setValue(pretty);
-    }
-    
-    document.getElementById('btn-save-config').addEventListener('click', async function() {
-      var content = codeMirrorInstance ? codeMirrorInstance.getValue() : document.getElementById('config-editor').value;
-      try {
-        var parsed = JSON.parse(content); // validate
-        var res = await fetch(API + '/openclaw/config', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(parsed),
-        });
-        if (res.ok) toast('Config saved!', 'success');
-        else toast('Save failed', 'error');
-      } catch (e) {
-        toast('Invalid JSON: ' + e.message, 'error');
-      }
-    });
-  } catch (e) {
-    container.innerHTML = '<div class="error">Error: ' + esc(e.message) + '</div>';
-  }
-}
-
-// Keep loadFiles for backward compatibility but it just redirects to config
-async function loadFiles(path) {
-  loadConfig();
-}
 
 function updateBreadcrumbs(path) {
   var bc = document.getElementById('breadcrumbs');
@@ -2123,4 +2050,5 @@ init();
   window.addEventListener('resize', function() {
     if (window.innerWidth > 768) closeMenu();
   });
+})();
 })();

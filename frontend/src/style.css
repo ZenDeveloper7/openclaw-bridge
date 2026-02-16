@@ -584,9 +584,6 @@ body {
 .dash-icon.red { background: var(--red-dim); }
 .dash-icon.cyan { background: var(--cyan-dim); }
 
-.dash-info { flex: 1; min-width: 0; }
-.dash-value { font-size: 22px; font-weight: 700; line-height: 1.2; }
-.dash-label { font-size: 11px; color: var(--text-dim); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* ── System Health Panel ───────────────────────────────────────────── */
 .health-panel {

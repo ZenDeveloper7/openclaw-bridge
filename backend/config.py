@@ -4,8 +4,11 @@ import os
 import re
 import json
 import shutil
+import logging
 from pathlib import Path
 from collections import deque
+
+logger = logging.getLogger("admin-dashboard")
 
 # ── Paths ───────────────────────────────────────────────────────────────
 OPENCLAW_DIR = Path(os.environ.get("OPENCLAW_DIR", Path.home() / ".openclaw"))

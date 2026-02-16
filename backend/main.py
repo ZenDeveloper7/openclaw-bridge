@@ -10,22 +10,89 @@ Modular structure:
     - network.py  : Network monitor
     - terminal.py : Terminal execution
     - calendar.py : Cron jobs
-    - security.py : Health & security
-    - activity.py : Activity log
+    - health.py   : Health & security
     - config.py   : Dashboard config
 """
 
 import os
+import time
+import logging
+from collections import defaultdict
 from pathlib import Path
-
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import secrets
 
 from routes import register_all_routes
 
+# ── Logging ─────────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("admin-dashboard")
+
+# ── Security Headers ───────────────────────────────────────────────────
+class SecurityHeadersMiddleware:
+    """Add security headers to all responses."""
+    def __init__(self, app):
+        self.app = app
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = dict(message.get("headers", []))
+                # Set security headers
+                headers[b"x-content-type-options"] = b"nosniff"
+                headers[b"x-frame-options"] = b"DENY"
+                headers[b"referrer-policy"] = b"strict-origin-when-cross-origin"
+                # CSP - restrictive; adjust as needed
+                csp = (
+                    "default-src 'self'; "
+                    "script-src 'self' 'unsafe-inline'; "
+                    "style-src 'self' 'unsafe-inline'; "
+                    "img-src 'self' data:; "
+                    "font-src 'self' data:;"
+                )
+                headers[b"content-security-policy"] = csp.encode()
+                message["headers"] = list(headers.items())
+            await send(message)
+        await self.app(scope, receive, send_wrapper)
+
+# ── Rate Limiting ──────────────────────────────────────────────────────
+class SimpleRateLimiter:
+    """Simple in-memory sliding window rate limiter."""
+    def __init__(self, app, calls: int = 60, period: int = 60):
+        self.app = app
+        self.calls = calls
+        self.period = period
+        self.clocks = defaultdict(list)  # ip -> list of timestamps
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        # Build a Request to access client info
+        request = Request(scope, receive)
+        ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        # Clean old entries
+        self.clocks[ip] = [t for t in self.clocks[ip] if now - t < self.period]
+        if len(self.clocks[ip]) >= self.calls:
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+        self.clocks[ip].append(now)
+        await self.app(scope, receive, send)
+
 app = FastAPI(title="OpenClaw Admin Dashboard", version="0.3.0")
+
+# ── Middleware Stack ───────────────────────────────────────────────────
+# Add rate limiting (60 req/min per IP)
+app.add_middleware(SimpleRateLimiter, calls=60, period=60)
+# Add security headers
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ── CORS ──────────────────────────────────────────────────────────────
 # Fixed: Environment-based origins, removed allow_credentials, restrictive methods/headers
@@ -86,6 +153,12 @@ app.add_middleware(CSRFMiddleware)
 
 # ── Routes ───────────────────────────────────────────────────────────
 register_all_routes(app)
+
+# ── Exception Handlers ───────────────────────────────────────────────
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return Response(content="Internal server error", status_code=500)
 
 # ── Static Files ─────────────────────────────────────────────────────
 frontend_path = Path(__file__).parent.parent / "frontend"
