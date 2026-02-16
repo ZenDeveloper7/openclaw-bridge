@@ -328,7 +328,7 @@ function getAgentLabel(agentId) {
 }
 
 function populateAgentDropdowns() {
-  var selectors = ['task-agent', 'activity-agent-filter'];
+  var selectors = ['task-agent'];
   for (var s = 0; s < selectors.length; s++) {
     var el = document.getElementById(selectors[s]);
     if (!el) continue;
@@ -365,7 +365,6 @@ function showView(name) {
   if (name === 'agents') loadAgents();
   if (name === 'subagents') loadSubagents();
   if (name === 'calendar') loadCalendar();
-  if (name === 'activity') loadActivity();
 }
 
 
@@ -1810,96 +1809,6 @@ document.getElementById('btn-cal-timeline').addEventListener('click', function()
   renderCalendarView();
 });
 
-// ── Activity Feed ──────────────────────────────────────────────────
-
-async function loadActivity() {
-  var agentEl = document.getElementById('activity-agent-filter');
-  var actionEl = document.getElementById('activity-action-filter');
-  var container = document.getElementById('activity-timeline');
-  if (!container) return;
-  container.innerHTML = '<div class="loading">Loading activity...</div>';
-
-  var agent = agentEl ? agentEl.value : '';
-  var action = actionEl ? actionEl.value : '';
-
-  try {
-    var params = '?limit=200';
-    if (agent) params += '&agent=' + encodeURIComponent(agent);
-    if (action) params += '&action=' + encodeURIComponent(action);
-    var res = await fetch(API + '/activity/log' + params);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var data = await res.json();
-    var entries = data.entries || [];
-    renderActivity(entries, data.total || entries.length);
-  } catch (e) {
-    container.innerHTML = '<div class="loading" style="color:var(--red)">Error loading activity: ' + esc(e.message) + '</div>';
-  }
-
-  // Auto-refresh if activity view is active
-  if (document.getElementById('view-activity').classList.contains('active')) {
-    startActivityPolling();
-  }
-}
-
-function renderActivity(entries, total) {
-  var container = document.getElementById('activity-timeline');
-  if (!entries.length) {
-    container.innerHTML = '<div class="activity-empty">'
-      + '<div style="font-size:40px; margin-bottom:12px;">📊</div>'
-      + '<div style="font-size:14px; color:var(--text-dim)">No activity recorded yet</div>'
-      + '<div style="font-size:12px; color:var(--text-muted); margin-top:6px;">Activity is logged automatically when agents perform actions</div>'
-      + '</div>';
-    return;
-  }
-
-  var html = '<div class="activity-count">' + total + ' total entries</div>';
-  for (var i = 0; i < entries.length; i++) {
-    var e = entries[i];
-    var action = e.action || e.type || 'info';
-    var icon = getActionIcon(action);
-    var agentLabel = getAgentLabel(e.agent);
-    var timeStr = e.timestamp ? formatIST(e.timestamp) : '';
-    var status = e.status ? ' · ' + esc(e.status) : '';
-    var duration = e.duration_ms ? ' · ' + esc(e.duration_ms + 'ms') : '';
-    var details = e.details || '';
-
-    // Determine CSS class for status color
-    var statusClass = 'activity-info';
-    if (e.status === 'success') statusClass = 'activity-success';
-    else if (e.status === 'error') statusClass = 'activity-error';
-
-    html += '<div class="activity-entry ' + statusClass + '">'
-      + '<div class="activity-icon">' + icon + '</div>'
-      + '<div class="activity-body">'
-      + '<div class="activity-main">'
-      + '<span class="activity-agent" style="font-weight:600;">' + agentLabel + '</span>'
-      + '<span class="activity-action" style="margin-left:6px;opacity:0.7;">' + esc(action) + '</span>'
-      + '</div>'
-      + '<div class="activity-meta">'
-      + '<span class="activity-time">' + esc(timeStr) + '</span>'
-      + (status ? '<span class="activity-status">' + esc(status) + '</span>' : '')
-      + (duration ? '<span class="activity-duration">' + esc(duration) + '</span>' : '')
-      + '</div>'
-      + (details ? '<div class="activity-details">' + esc(details) + '</div>' : '')
-      + '</div></div>';
-  }
-  container.innerHTML = html;
-}
-
-function getActionIcon(action) {
-  var icons = {
-    file_write: '📝', file_read: '📖', task_create: '➕', task_move: '📋',
-    task_update: '✏️', task_delete: '🗑️', search: '🔍', command: '⚡',
-    build: '🔨', deploy: '🚀', error: '❌', login: '🔑',
-    agent_run_start: '🚀', agent_run_end: '✅', tool_start: '🔧', tool_end: '🔧',
-    message: '💬',
-  };
-  return icons[action] || '📌';
-}
-
-document.getElementById('btn-refresh-activity').addEventListener('click', loadActivity);
-document.getElementById('activity-agent-filter').addEventListener('change', loadActivity);
-document.getElementById('activity-action-filter').addEventListener('change', loadActivity);
 
 // ── Command Palette ────────────────────────────────────────────────
 
@@ -1907,7 +1816,6 @@ var PALETTE_COMMANDS = [
   { icon: '📋', label: 'Kanban', hint: 'Task board', action: function() { switchView('kanban'); } },
   { icon: '🤖', label: 'Agents', hint: 'Agent sessions', action: function() { switchView('agents'); } },
   { icon: '📅', label: 'Calendar', hint: 'Scheduled cron jobs', action: function() { switchView('calendar'); } },
-  { icon: '📊', label: 'Activity', hint: 'Activity feed', action: function() { switchView('activity'); } },
   { icon: '➕', label: 'New Task', hint: 'Create a task', action: function() { closePalette(); openNewTask('backlog'); } },
   { icon: '🔄', label: 'Refresh', hint: 'Reload current view', action: function() { refreshCurrentView(); } },
 ];
@@ -1917,21 +1825,8 @@ var paletteFileResults = [];
 var paletteMode = 'commands'; // 'commands' or 'files'
 var paletteSearchTimer = null;
 
-var activityPollTimer = null;
-function startActivityPolling() {
-  stopActivityPolling();
-  activityPollTimer = setInterval(loadActivity, 10000);
-}
-function stopActivityPolling() {
-  if (activityPollTimer) { clearInterval(activityPollTimer); activityPollTimer = null; }
-}
-
 function switchView(name) {
   closePalette();
-  // Stop activity polling if leaving activity view
-  if (document.getElementById('view-activity').classList.contains('active')) {
-    stopActivityPolling();
-  }
   document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.view === name); });
   showView(name);
 }

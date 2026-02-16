@@ -32,7 +32,6 @@
         <button class="nav-btn active" data-view="kanban">Kanban</button>
         <button class="nav-btn" data-view="agents">Agents</button>
         <button class="nav-btn" data-view="calendar">Calendar</button>
-        <button class="nav-btn" data-view="activity">Activity</button>
       </nav>
       <div class="top-right">
         <div class="stats-row">
@@ -97,32 +96,6 @@
         </div>
         <div id="calendar-grid" class="calendar-grid"></div>
         <div id="cal-job-list" class="cal-job-list"></div>
-      </div>
-
-      <!-- Activity View -->
-      <div id="view-activity" class="view">
-        <div class="view-header">
-          <h2>📊 Activity Feed</h2>
-          <div class="editor-actions">
-            <select id="activity-agent-filter" class="filter-select">
-              <option value="">All Agents</option>
-            </select>
-            <select id="activity-action-filter" class="filter-select">
-              <option value="">All Actions</option>
-              <option value="file_write">File Write</option>
-              <option value="task_create">Task Create</option>
-              <option value="task_move">Task Move</option>
-              <option value="agent_run_start">Agent Run</option>
-              <option value="tool_start">Tool Call</option>
-              <option value="message">Message</option>
-              <option value="search">Search</option>
-            </select>
-            <button id="btn-refresh-activity" class="btn btn-secondary">🔄 Refresh</button>
-          </div>
-        </div>
-        <div id="activity-timeline" class="activity-timeline">
-          <div class="loading">Loading activity...</div>
-        </div>
       </div>
 
       <!-- File Editor -->

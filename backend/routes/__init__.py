@@ -6,7 +6,6 @@ from .agents import setup_agents_routes
 from .network import setup_network_routes
 from .terminal import setup_terminal_routes
 from .calendar import setup_calendar_routes
-from .activity import setup_activity_routes
 from .config import setup_config_routes
 from .health import setup_health_routes
 
@@ -19,6 +18,5 @@ def register_all_routes(app):
     setup_network_routes(app)
     setup_terminal_routes(app)
     setup_calendar_routes(app)
-    setup_activity_routes(app)
     setup_config_routes(app)
     setup_health_routes(app)
