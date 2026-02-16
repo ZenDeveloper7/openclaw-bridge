@@ -4,6 +4,47 @@
 /* Smooth scrolling */
 html { scroll-behavior: smooth; }
 
+/* ── Top Bar ───────────────────────────────────────────────────────── */
+#top-bar {
+  height: 48px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.top-bar .stats-left,
+.top-bar .stats-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.stat {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.stat span {
+  color: var(--text);
+  font-weight: 600;
+}
+.health-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.health-dot.up {
+  background: var(--green);
+}
+.health-dot.down {
+  background: var(--red);
+}
+
 /* Theme: Default (Dark) */
 [data-theme="default"], :root {
   --bg-dark: #0a0e14;

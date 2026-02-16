@@ -31,12 +31,10 @@
         <button id="btn-collapse" class="collapse-btn" title="Collapse sidebar">◀</button>
       </div>
       <div class="nav-section">
-        <button class="nav-btn active" data-view="dashboard">📊 Dashboard</button>
-        <button class="nav-btn" data-view="kanban">📋 Kanban</button>
+        <button class="nav-btn active" data-view="kanban">📋 Kanban</button>
         <button class="nav-btn" data-view="agents">🤖 Agents</button>
         <button class="nav-btn" data-view="subagents">🤖 Subagents</button>
         <button class="nav-btn" data-view="calendar">📅 Calendar</button>
-        <button class="nav-btn" data-view="files">⚙️ Config</button>
         <button class="nav-btn" data-view="activity">📊 Activity</button>
         <button class="nav-btn" data-view="security">🛡️ Security</button>
       </div>
@@ -46,55 +44,22 @@
     </nav>
 
     <main id="content">
-
-      <!-- Dashboard View -->
-      <div id="view-dashboard" class="view active">
-        <div class="view-header">
-          <h2 id="board-title">Control Board</h2>
-          <div class="editor-actions">
-            <button id="btn-settings" class="btn btn-secondary" title="Settings">⚙️ Settings</button>
-            <button id="btn-refresh-dash" class="btn btn-secondary">🔄 Refresh</button>
-          </div>
+      <!-- Top Bar -->
+      <div id="top-bar" class="top-bar">
+        <div class="stats-left">
+          <span class="stat"><span id="stat-agents">0</span> agents</span>
+          <span class="stat"><span id="stat-tasks">0</span> open tasks</span>
+          <span class="stat" id="stat-cron">Next: --</span>
         </div>
-        <div id="dashboard-stats" class="dashboard-grid"></div>
-        <!-- System Health Panel -->
-        <div class="health-panel">
-          <div class="health-header">
-            <h3>🖥️ System Health</h3>
-            <span id="health-uptime" class="health-uptime">--</span>
-          </div>
-          <div id="health-metrics" class="health-grid"></div>
-          <!-- Progress Bars -->
-          <div class="health-bars">
-            <div class="health-bar-item">
-              <div class="health-bar-track">
-                <div id="mem-bar" class="health-bar-fill" style="width: 0%;"></div>
-              </div>
-              <div id="mem-percent" class="health-bar-percent"></div>
-            </div>
-            <div class="health-bar-item">
-              <div class="health-bar-track">
-                <div id="disk-bar" class="health-bar-fill" style="width: 0%;"></div>
-              </div>
-              <div id="disk-percent" class="health-bar-percent"></div>
-            </div>
-          </div>
-          <!-- Load average removed -->
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-          <div>
-            <h3 style="font-size:14px; font-weight:700; margin-bottom:12px; color:var(--text-dim);">AGENTS</h3>
-            <div id="dash-agents" class="agent-grid"></div>
-          </div>
-          <div>
-            <h3 style="font-size:14px; font-weight:700; margin-bottom:12px; color:var(--text-dim);">IN PROGRESS</h3>
-            <div id="dash-tasks"></div>
-          </div>
+        <div class="stats-right">
+          <span class="health-dot" id="health-backend" title="Backend"></span>
+          <span class="health-dot" id="health-gateway" title="Gateway"></span>
+          <button id="btn-settings" class="btn btn-icon" title="Settings">⚙️</button>
         </div>
       </div>
 
       <!-- Kanban View -->
-      <div id="view-kanban" class="view">
+      <div id="view-kanban" class="view active">
         <div class="view-header">
           <h2>Task Board</h2>
           <div class="editor-actions">
@@ -122,14 +87,6 @@
           <button id="btn-refresh-subagents" class="btn btn-secondary">🔄 Refresh</button>
         </div>
         <div id="subagent-list" class="agent-grid"></div>
-      </div>
-
-      <!-- Files View -->
-      <div id="view-files" class="view">
-        <div class="view-header">
-          <h2>⚙️ Configuration</h2>
-        </div>
-        <div id="config-view" class="config-view"></div>
       </div>
 
       <!-- Calendar View -->
@@ -320,28 +277,6 @@
             <button id="btn-task-delete" class="btn btn-secondary" style="color:var(--red); margin-right:auto; display:none;">🗑️ Delete</button>
             <button id="btn-task-cancel" class="btn btn-secondary">Cancel</button>
             <button id="btn-task-save" class="btn btn-primary">Save Task</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Agent Dialog -->
-      <div id="agent-dialog" class="modal hidden">
-        <div class="modal-content agent-dialog-content">
-          <div class="modal-header">
-            <h3 id="agent-dialog-title">Agent</h3>
-            <button id="btn-agent-dialog-close" class="btn btn-ghost">✕</button>
-          </div>
-          <div class="agent-dialog-options">
-            <button id="btn-agent-state" class="agent-dialog-btn">
-              <span class="agent-dialog-icon">📊</span>
-              <span class="agent-dialog-label">State</span>
-              <span class="agent-dialog-hint">View agent session state</span>
-            </button>
-            <button id="btn-agent-workspace" class="agent-dialog-btn">
-              <span class="agent-dialog-icon">📁</span>
-              <span class="agent-dialog-label">Workspace</span>
-              <span class="agent-dialog-hint">Browse agent workspace files</span>
-            </button>
           </div>
         </div>
       </div>

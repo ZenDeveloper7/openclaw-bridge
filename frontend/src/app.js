@@ -361,12 +361,10 @@ function showView(name) {
   var target = document.getElementById('view-' + name);
   if (target) target.classList.add('active');
 
-  if (name === 'dashboard') loadDashboard();
   if (name === 'kanban') loadKanban();
   if (name === 'agents') loadAgents();
   if (name === 'subagents') loadSubagents();
   if (name === 'calendar') loadCalendar();
-  if (name === 'files') loadConfig();
   if (name === 'activity') loadActivity();
   if (name === 'security') loadSecurity();
 }
@@ -499,7 +497,7 @@ function renderHealthMetrics(health) {
   // Load average chart removed — only RAM and Disk shown
 }
 
-document.getElementById('btn-refresh-dash').addEventListener('click', loadDashboard);
+// Removed dashboard refresh button
 
 // ── Kanban Board ───────────────────────────────────────────────────
 
@@ -753,10 +751,6 @@ document.getElementById('btn-task-save').addEventListener('click', async functio
 
     closeTaskModal();
     await loadKanban();
-    // Also refresh dashboard if visible
-    if (document.getElementById('view-dashboard').classList.contains('active')) {
-      loadDashboard();
-    }
   } catch (e) {
     toast('Error: ' + e.message, 'error');
   }
@@ -1172,7 +1166,7 @@ function renderAgentCard(agent, compact, agentRoles) {
     else lastActive = Math.floor(mins / 1440) + 'd ago';
   }
 
-  var html = '<div class="agent-card clickable" onclick="openAgentDialog(\'' + escAttr(agent.id) + '\', \'' + escAttr(agent.name) + '\')">'
+  var html = '<div class="agent-card">'
     + '<div class="agent-card-header">'
     + '<div class="agent-avatar-large">' + emoji + '</div>'
     + '<div class="agent-info">'
@@ -1301,48 +1295,7 @@ function renderSubagentCard(session) {
   return html;
 }
 
-// ── Agent Dialog ───────────────────────────────────────────────────
-
-var currentAgentDialogId = '';
-
-function openAgentDialog(agentId, agentName) {
-  currentAgentDialogId = agentId;
-  var emoji = getAgentEmoji(agentId, agentName);
-  document.getElementById('agent-dialog-title').textContent = emoji + ' ' + agentName;
-  document.getElementById('agent-dialog').classList.remove('hidden');
-}
-
-function closeAgentDialog() {
-  document.getElementById('agent-dialog').classList.add('hidden');
-  currentAgentDialogId = '';
-}
-
-document.getElementById('btn-agent-dialog-close').addEventListener('click', closeAgentDialog);
-
-document.getElementById('agent-dialog').addEventListener('click', function(e) {
-  if (e.target === this) closeAgentDialog();
-});
-
-document.getElementById('btn-agent-state').addEventListener('click', function() {
-  var id = currentAgentDialogId;
-  closeAgentDialog();
-  // Navigate to agents/<agent-id> in file explorer
-  loadFiles('agents/' + id);
-  document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.view === 'files'); });
-  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-  document.getElementById('view-files').classList.add('active');
-});
-
-document.getElementById('btn-agent-workspace').addEventListener('click', function() {
-  var id = currentAgentDialogId;
-  closeAgentDialog();
-  // Navigate to workspace-<agent-id> in file explorer (or workspace for main)
-  var wsPath = id === 'main' ? 'workspace' : 'workspace-' + id;
-  loadFiles(wsPath);
-  document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.view === 'files'); });
-  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-  document.getElementById('view-files').classList.add('active');
-});
+// Agent dialog removed (no longer needed)
 
 document.getElementById('btn-refresh-agents').addEventListener('click', loadAgents);
 document.getElementById('btn-refresh-subagents').addEventListener('click', loadSubagents);
@@ -2198,11 +2151,9 @@ document.getElementById('activity-action-filter').addEventListener('change', loa
 // ── Command Palette ────────────────────────────────────────────────
 
 var PALETTE_COMMANDS = [
-  { icon: '📊', label: 'Dashboard', hint: 'Control board overview', action: function() { switchView('dashboard'); } },
   { icon: '📋', label: 'Kanban', hint: 'Task board', action: function() { switchView('kanban'); } },
   { icon: '🤖', label: 'Agents', hint: 'Agent sessions', action: function() { switchView('agents'); } },
   { icon: '📅', label: 'Calendar', hint: 'Scheduled cron jobs', action: function() { switchView('calendar'); } },
-  { icon: '📁', label: 'Files', hint: 'File explorer', action: function() { switchView('files'); } },
   { icon: '📊', label: 'Activity', hint: 'Activity feed', action: function() { switchView('activity'); } },
   { icon: '🛡️', label: 'Security', hint: 'Security panel', action: function() { switchView('security'); } },
   { icon: '➕', label: 'New Task', hint: 'Create a task', action: function() { closePalette(); openNewTask('backlog'); } },
@@ -2544,12 +2495,68 @@ function toast(msg, type) {
   checkWidth();
 })();
 
+// ── Top Bar Stats ────────────────────────────────────────────────────
+
+async function updateTopBarStats() {
+  try {
+    // Active agents count
+    var agentsRes = await fetch(API + '/agents');
+    var agents = await agentsRes.json();
+    var activeAgents = agents.filter(a => a.status === 'active').length;
+    document.getElementById('stat-agents').textContent = activeAgents;
+
+    // Open tasks count (backlog + in-progress)
+    var tasksRes = await fetch(API + '/kanban/tasks');
+    var tasks = await tasksRes.json();
+    var openTasks = tasks.filter(t => t.status === 'backlog' || t.status === 'in-progress').length;
+    document.getElementById('stat-tasks').textContent = openTasks;
+
+    // Next cron job
+    var calRes = await fetch(API + '/calendar/jobs');
+    var jobs = await calRes.json();
+    var upcoming = jobs.filter(j => j.nextRunAt).sort(function(a, b) {
+      return new Date(a.nextRunAt) - new Date(b.nextRunAt);
+    });
+    var cronEl = document.getElementById('stat-cron');
+    if (upcoming.length) {
+      var nextTime = formatIST(upcoming[0].nextRunAt);
+      cronEl.innerHTML = 'Next: <span style="color:var(--text);">' + esc(nextTime) + '</span>';
+    } else {
+      cronEl.textContent = 'No scheduled jobs';
+    }
+
+    // Gateway health
+    try {
+      var gwRes = await fetch(API + '/health/gateway');
+      var gw = await gwRes.json();
+      var gwDot = document.getElementById('health-gateway');
+      gwDot.className = 'health-dot ' + (gw.status === 'up' ? 'up' : 'down');
+    } catch (e) {
+      document.getElementById('health-gateway').className = 'health-dot down';
+    }
+
+    // Backend health (via config endpoint)
+    try {
+      var cfgRes = await fetch(API + '/openclaw/config');
+      var bkDot = document.getElementById('health-backend');
+      bkDot.className = 'health-dot ' + (cfgRes.ok ? 'up' : 'down');
+    } catch (e) {
+      document.getElementById('health-backend').className = 'health-dot down';
+    }
+  } catch (e) {
+    console.error('Top bar stats update failed', e);
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────────
 
 async function init() {
   await loadDashboardConfig();
   await loadAgentRegistry();
-  loadDashboard();
+  // loadDashboard(); // removed
+  loadKanban();
+  updateTopBarStats();
+  setInterval(updateTopBarStats, 30000); // refresh every 30s
   try {
     var res = await fetch(API + '/stats');
     var stats = await res.json();

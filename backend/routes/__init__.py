@@ -9,6 +9,7 @@ from .calendar import setup_calendar_routes
 from .security import setup_security_routes
 from .activity import setup_activity_routes
 from .config import setup_config_routes
+from .health import setup_health_routes
 
 
 def register_all_routes(app):
@@ -22,3 +23,4 @@ def register_all_routes(app):
     setup_security_routes(app)
     setup_activity_routes(app)
     setup_config_routes(app)
+    setup_health_routes(app)
