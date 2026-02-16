@@ -92,6 +92,11 @@ html { scroll-behavior: smooth; }
   display: none;
 }
 
+/* Base font family */
+body {
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* Theme: Default (Dark) */
 [data-theme="default"], :root {
   --bg-dark: #0a0e14;

@@ -92,6 +92,11 @@ html { scroll-behavior: smooth; }
   display: none;
 }
 
+/* Base font family */
+body {
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* Theme: Default (Dark) */
 [data-theme="default"], :root {
   --bg-dark: #0a0e14;
@@ -288,20 +293,19 @@ body {
 
 #app {
   display: flex;
+  flex-direction: column;
   height: 100vh;
 }
 
-/* ── Sidebar ──────────────────────────────────────────────────────── */
-#sidebar {
-  width: var(--sidebar-w);
-  min-width: var(--sidebar-w);
-  background: var(--bg-card);
-  border-right: 1px solid var(--border);
+/* Sidebar removed */
+
+/* ── Content Area ─────────────────────────────────────────────────── */
+#content {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 16px 12px;
-  transition: width 0.2s ease, min-width 0.2s ease, padding 0.2s ease;
   overflow: hidden;
+  padding: 16px;
 }
 
 #sidebar.collapsed {
