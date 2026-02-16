@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from fastapi import HTTPException
 
-from config import DASHBOARD_DATA_DIR
+from config import OPENCLAW_DIR
 
 
 def _get_all_sessions() -> list[dict]:
@@ -108,7 +108,7 @@ def setup_activity_routes(app):
     @app.get("/api/activity/log")
     def get_activity_log(limit: int = 200, offset: int = 0, action: str = None):
         """Read the raw activity feed from activity-feed.jsonl."""
-        log_file = DASHBOARD_DATA_DIR / "activity-feed.jsonl"
+        log_file = OPENCLAW_DIR / "activity-feed.jsonl"
         if not log_file.exists():
             return {"total": 0, "offset": 0, "limit": limit, "entries": []}
         
