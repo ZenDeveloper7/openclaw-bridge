@@ -8,38 +8,18 @@ let currentPath = '';
 let currentEditPath = '';
 
 // ── Dashboard Config ───────────────────────────────────────────────
-var dashboardConfig = { boardName: 'Control Board', icon: '🦞', theme: 'default', accentColor: null };
+var dashboardConfig = { theme: 'default', accentColor: null };
 
 async function loadDashboardConfig() {
   try {
     var res = await fetch(API + '/dashboard/config');
     if (res.ok) {
       dashboardConfig = await res.json();
-      applyDashboardConfig();
+      applyTheme(dashboardConfig.theme);
     }
   } catch (e) {
-    console.log('Using default dashboard config');
+    applyTheme('default');
   }
-}
-
-function applyDashboardConfig() {
-  // Update page title
-  document.title = dashboardConfig.boardName || 'OpenClaw Control Board';
-  // Update header
-  var boardTitle = document.getElementById('board-title');
-  if (boardTitle) boardTitle.textContent = dashboardConfig.boardName || 'Control Board';
-  // Update favicon if icon is provided
-  if (dashboardConfig.icon) {
-    var favicon = document.querySelector('link[rel="icon"]');
-    if (favicon) {
-      favicon.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>" + dashboardConfig.icon + "</text></svg>";
-    }
-    // Update logo
-    var logoIcon = document.querySelector('.logo-icon');
-    if (logoIcon) logoIcon.textContent = dashboardConfig.icon;
-  }
-  // Apply theme
-  applyTheme(dashboardConfig.theme);
 }
 
 function applyTheme(theme) {
