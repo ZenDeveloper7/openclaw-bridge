@@ -15,49 +15,33 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/theme/material-darker.css">
 </head>
 <body>
-  <!-- Mobile sidebar overlay -->
-  <div id="sidebar-overlay"></div>
-  
-  <!-- Mobile nav toggle button -->
-  <button id="mobile-nav-toggle" title="Open menu">☰</button>
-  
   <div id="app">
-    <nav id="sidebar">
-      <div class="sidebar-top">
+    <header id="top-bar" class="top-bar">
+      <div class="top-left">
         <div class="logo">
           <span class="logo-icon">🦞</span>
           <h1 class="logo-text">OpenClaw</h1>
         </div>
-        <button id="btn-collapse" class="collapse-btn" title="Collapse sidebar">◀</button>
       </div>
-      <div class="nav-section">
-        <button class="nav-btn active" data-view="kanban">📋 Kanban</button>
-        <button class="nav-btn" data-view="agents">🤖 Agents</button>
-        <button class="nav-btn" data-view="subagents">🤖 Subagents</button>
-        <button class="nav-btn" data-view="calendar">📅 Calendar</button>
-        <button class="nav-btn" data-view="activity">📊 Activity</button>
-        <button class="nav-btn" data-view="security">🛡️ Security</button>
+      <nav class="top-nav">
+        <button class="nav-btn active" data-view="kanban">Kanban</button>
+        <button class="nav-btn" data-view="agents">Agents</button>
+        <button class="nav-btn" data-view="calendar">Calendar</button>
+        <button class="nav-btn" data-view="activity">Activity</button>
+        <button class="nav-btn" data-view="security">Security</button>
+      </nav>
+      <div class="top-right">
+        <div class="stats-row">
+          <span class="stat" title="Working agents (active in last 30s)">🟢 <span id="stat-working">0</span></span>
+          <span class="stat" title="Idle agents">🔘 <span id="stat-idle">0</span></span>
+          <span class="stat" title="RAM usage">💾 <span id="stat-ram">--</span>%</span>
+          <span class="stat" title="Disk usage">💿 <span id="stat-disk">--</span>%</span>
+        </div>
+        <button id="btn-settings" class="btn btn-icon" title="Settings">⚙️</button>
       </div>
-      <div class="nav-footer">
-        <span id="version-badge">v...</span>
-      </div>
-    </nav>
+    </header>
 
     <main id="content">
-      <!-- Top Bar -->
-      <div id="top-bar" class="top-bar">
-        <div class="stats-left">
-          <span class="stat"><span id="stat-agents">0</span> agents</span>
-          <span class="stat"><span id="stat-tasks">0</span> open tasks</span>
-          <span class="stat" id="stat-cron">Next: --</span>
-        </div>
-        <div class="stats-right">
-          <span class="health-dot" id="health-backend" title="Backend"></span>
-          <span class="health-dot" id="health-gateway" title="Gateway"></span>
-          <button id="btn-settings" class="btn btn-icon" title="Settings">⚙️</button>
-        </div>
-      </div>
-
       <!-- Kanban View -->
       <div id="view-kanban" class="view active">
         <div class="view-header">

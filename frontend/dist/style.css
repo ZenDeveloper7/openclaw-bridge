@@ -4,6 +4,94 @@
 /* Smooth scrolling */
 html { scroll-behavior: smooth; }
 
+/* ── Top Bar ───────────────────────────────────────────────────────── */
+#top-bar {
+  height: 52px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  gap: 16px;
+}
+.top-left {
+  display: flex;
+  align-items: center;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo-icon {
+  font-size: 24px;
+}
+.logo-text {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+.top-nav {
+  display: flex;
+  gap: 4px;
+}
+.top-nav .nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+.top-nav .nav-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.top-nav .nav-btn.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.stats-row {
+  display: flex;
+  gap: 12px;
+}
+.stat {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.stat span {
+  color: var(--text);
+  font-weight: 600;
+}
+.btn-icon {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+}
+.btn-icon:hover {
+  background: var(--bg-hover);
+}
+
+/* Hide mobile nav toggle */
+#mobile-nav-toggle {
+  display: none;
+}
+
 /* Theme: Default (Dark) */
 [data-theme="default"], :root {
   --bg-dark: #0a0e14;

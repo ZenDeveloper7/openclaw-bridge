@@ -2434,117 +2434,32 @@ function toast(msg, type) {
   setTimeout(function() { el.remove(); }, 3000);
 }
 
-// ── Mobile Navigation ─────────────────────────────────────────────────
-
-(function() {
-  var sidebar = document.getElementById('sidebar');
-  var overlay = document.getElementById('sidebar-overlay');
-  var toggle = document.getElementById('mobile-nav-toggle');
-  
-  if (!sidebar || !overlay || !toggle) return;
-  
-  function openMobileMenu() {
-    sidebar.classList.add('mobile-open');
-    overlay.classList.add('active');
-    document.body.style.overflow = 'hidden';
-  }
-  
-  function closeMobileMenu() {
-    sidebar.classList.remove('mobile-open');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
-  }
-  
-  toggle.addEventListener('click', function(e) {
-    e.stopPropagation();
-    if (sidebar.classList.contains('mobile-open')) {
-      closeMobileMenu();
-    } else {
-      openMobileMenu();
-    }
-  });
-  
-  overlay.addEventListener('click', closeMobileMenu);
-  
-  // Close menu when clicking nav buttons
-  var navBtns = sidebar.querySelectorAll('.nav-btn');
-  navBtns.forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      closeMobileMenu();
-    });
-  });
-  
-  // Close menu on escape key
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && sidebar.classList.contains('mobile-open')) {
-      closeMobileMenu();
-    }
-  });
-  
-  // Hide toggle on desktop
-  function checkWidth() {
-    if (window.innerWidth > 700) {
-      closeMobileMenu();
-      toggle.style.display = 'none';
-    } else {
-      toggle.style.display = 'flex';
-    }
-  }
-  
-  window.addEventListener('resize', checkWidth);
-  checkWidth();
-})();
+// Mobile navigation removed (sidebar removed)
 
 // ── Top Bar Stats ────────────────────────────────────────────────────
 
 async function updateTopBarStats() {
   try {
-    // Active agents count
+    // Agents: working vs idle
     var agentsRes = await fetch(API + '/agents');
     var agents = await agentsRes.json();
-    var activeAgents = agents.filter(a => a.status === 'active').length;
-    document.getElementById('stat-agents').textContent = activeAgents;
-
-    // Open tasks count (backlog + in-progress)
-    var tasksRes = await fetch(API + '/kanban/tasks');
-    var tasks = await tasksRes.json();
-    var openTasks = tasks.filter(t => t.status === 'backlog' || t.status === 'in-progress').length;
-    document.getElementById('stat-tasks').textContent = openTasks;
-
-    // Next cron job
-    var calRes = await fetch(API + '/calendar/jobs');
-    var jobs = await calRes.json();
-    var upcoming = jobs.filter(j => j.nextRunAt).sort(function(a, b) {
-      return new Date(a.nextRunAt) - new Date(b.nextRunAt);
-    });
-    var cronEl = document.getElementById('stat-cron');
-    if (upcoming.length) {
-      var nextTime = formatIST(upcoming[0].nextRunAt);
-      cronEl.innerHTML = 'Next: <span style="color:var(--text);">' + esc(nextTime) + '</span>';
-    } else {
-      cronEl.textContent = 'No scheduled jobs';
-    }
-
-    // Gateway health
-    try {
-      var gwRes = await fetch(API + '/health/gateway');
-      var gw = await gwRes.json();
-      var gwDot = document.getElementById('health-gateway');
-      gwDot.className = 'health-dot ' + (gw.status === 'up' ? 'up' : 'down');
-    } catch (e) {
-      document.getElementById('health-gateway').className = 'health-dot down';
-    }
-
-    // Backend health (via config endpoint)
-    try {
-      var cfgRes = await fetch(API + '/openclaw/config');
-      var bkDot = document.getElementById('health-backend');
-      bkDot.className = 'health-dot ' + (cfgRes.ok ? 'up' : 'down');
-    } catch (e) {
-      document.getElementById('health-backend').className = 'health-dot down';
-    }
+    var activeAgents = agents.filter(a => a.status === 'active');
+    var workingCount = activeAgents.filter(a => a.working).length;
+    var idleCount = activeAgents.length - workingCount;
+    document.getElementById('stat-working').textContent = workingCount;
+    document.getElementById('stat-idle').textContent = idleCount;
   } catch (e) {
-    console.error('Top bar stats update failed', e);
+    console.error('Failed to load agents for stats', e);
+  }
+
+  // System health: RAM and Disk
+  try {
+    var healthRes = await fetch(API + '/health');
+    var health = await healthRes.json();
+    document.getElementById('stat-ram').textContent = health.memory.percent.toFixed(0);
+    document.getElementById('stat-disk').textContent = health.disk.percent.toFixed(0);
+  } catch (e) {
+    console.error('Failed to load health for stats', e);
   }
 }
 
@@ -2560,7 +2475,8 @@ async function init() {
   try {
     var res = await fetch(API + '/stats');
     var stats = await res.json();
-    document.getElementById('version-badge').textContent = stats.version;
+    var vb = document.getElementById('version-badge');
+    if (vb) vb.textContent = stats.version;
   } catch (e) {}
 }
 

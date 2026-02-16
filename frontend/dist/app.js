@@ -361,12 +361,10 @@ function showView(name) {
   var target = document.getElementById('view-' + name);
   if (target) target.classList.add('active');
 
-  if (name === 'dashboard') loadDashboard();
   if (name === 'kanban') loadKanban();
   if (name === 'agents') loadAgents();
   if (name === 'subagents') loadSubagents();
   if (name === 'calendar') loadCalendar();
-  if (name === 'files') loadConfig();
   if (name === 'activity') loadActivity();
   if (name === 'security') loadSecurity();
 }
@@ -499,7 +497,7 @@ function renderHealthMetrics(health) {
   // Load average chart removed — only RAM and Disk shown
 }
 
-document.getElementById('btn-refresh-dash').addEventListener('click', loadDashboard);
+// Removed dashboard refresh button
 
 // ── Kanban Board ───────────────────────────────────────────────────
 
@@ -753,10 +751,6 @@ document.getElementById('btn-task-save').addEventListener('click', async functio
 
     closeTaskModal();
     await loadKanban();
-    // Also refresh dashboard if visible
-    if (document.getElementById('view-dashboard').classList.contains('active')) {
-      loadDashboard();
-    }
   } catch (e) {
     toast('Error: ' + e.message, 'error');
   }
@@ -1172,7 +1166,7 @@ function renderAgentCard(agent, compact, agentRoles) {
     else lastActive = Math.floor(mins / 1440) + 'd ago';
   }
 
-  var html = '<div class="agent-card clickable" onclick="openAgentDialog(\'' + escAttr(agent.id) + '\', \'' + escAttr(agent.name) + '\')">'
+  var html = '<div class="agent-card">'
     + '<div class="agent-card-header">'
     + '<div class="agent-avatar-large">' + emoji + '</div>'
     + '<div class="agent-info">'
@@ -1301,48 +1295,7 @@ function renderSubagentCard(session) {
   return html;
 }
 
-// ── Agent Dialog ───────────────────────────────────────────────────
-
-var currentAgentDialogId = '';
-
-function openAgentDialog(agentId, agentName) {
-  currentAgentDialogId = agentId;
-  var emoji = getAgentEmoji(agentId, agentName);
-  document.getElementById('agent-dialog-title').textContent = emoji + ' ' + agentName;
-  document.getElementById('agent-dialog').classList.remove('hidden');
-}
-
-function closeAgentDialog() {
-  document.getElementById('agent-dialog').classList.add('hidden');
-  currentAgentDialogId = '';
-}
-
-document.getElementById('btn-agent-dialog-close').addEventListener('click', closeAgentDialog);
-
-document.getElementById('agent-dialog').addEventListener('click', function(e) {
-  if (e.target === this) closeAgentDialog();
-});
-
-document.getElementById('btn-agent-state').addEventListener('click', function() {
-  var id = currentAgentDialogId;
-  closeAgentDialog();
-  // Navigate to agents/<agent-id> in file explorer
-  loadFiles('agents/' + id);
-  document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.view === 'files'); });
-  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-  document.getElementById('view-files').classList.add('active');
-});
-
-document.getElementById('btn-agent-workspace').addEventListener('click', function() {
-  var id = currentAgentDialogId;
-  closeAgentDialog();
-  // Navigate to workspace-<agent-id> in file explorer (or workspace for main)
-  var wsPath = id === 'main' ? 'workspace' : 'workspace-' + id;
-  loadFiles(wsPath);
-  document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.view === 'files'); });
-  document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-  document.getElementById('view-files').classList.add('active');
-});
+// Agent dialog removed (no longer needed)
 
 document.getElementById('btn-refresh-agents').addEventListener('click', loadAgents);
 document.getElementById('btn-refresh-subagents').addEventListener('click', loadSubagents);
@@ -2198,11 +2151,9 @@ document.getElementById('activity-action-filter').addEventListener('change', loa
 // ── Command Palette ────────────────────────────────────────────────
 
 var PALETTE_COMMANDS = [
-  { icon: '📊', label: 'Dashboard', hint: 'Control board overview', action: function() { switchView('dashboard'); } },
   { icon: '📋', label: 'Kanban', hint: 'Task board', action: function() { switchView('kanban'); } },
   { icon: '🤖', label: 'Agents', hint: 'Agent sessions', action: function() { switchView('agents'); } },
   { icon: '📅', label: 'Calendar', hint: 'Scheduled cron jobs', action: function() { switchView('calendar'); } },
-  { icon: '📁', label: 'Files', hint: 'File explorer', action: function() { switchView('files'); } },
   { icon: '📊', label: 'Activity', hint: 'Activity feed', action: function() { switchView('activity'); } },
   { icon: '🛡️', label: 'Security', hint: 'Security panel', action: function() { switchView('security'); } },
   { icon: '➕', label: 'New Task', hint: 'Create a task', action: function() { closePalette(); openNewTask('backlog'); } },
@@ -2483,77 +2434,49 @@ function toast(msg, type) {
   setTimeout(function() { el.remove(); }, 3000);
 }
 
-// ── Mobile Navigation ─────────────────────────────────────────────────
+// Mobile navigation removed (sidebar removed)
 
-(function() {
-  var sidebar = document.getElementById('sidebar');
-  var overlay = document.getElementById('sidebar-overlay');
-  var toggle = document.getElementById('mobile-nav-toggle');
-  
-  if (!sidebar || !overlay || !toggle) return;
-  
-  function openMobileMenu() {
-    sidebar.classList.add('mobile-open');
-    overlay.classList.add('active');
-    document.body.style.overflow = 'hidden';
+// ── Top Bar Stats ────────────────────────────────────────────────────
+
+async function updateTopBarStats() {
+  try {
+    // Agents: working vs idle
+    var agentsRes = await fetch(API + '/agents');
+    var agents = await agentsRes.json();
+    var activeAgents = agents.filter(a => a.status === 'active');
+    var workingCount = activeAgents.filter(a => a.working).length;
+    var idleCount = activeAgents.length - workingCount;
+    document.getElementById('stat-working').textContent = workingCount;
+    document.getElementById('stat-idle').textContent = idleCount;
+  } catch (e) {
+    console.error('Failed to load agents for stats', e);
   }
-  
-  function closeMobileMenu() {
-    sidebar.classList.remove('mobile-open');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
+
+  // System health: RAM and Disk
+  try {
+    var healthRes = await fetch(API + '/health');
+    var health = await healthRes.json();
+    document.getElementById('stat-ram').textContent = health.memory.percent.toFixed(0);
+    document.getElementById('stat-disk').textContent = health.disk.percent.toFixed(0);
+  } catch (e) {
+    console.error('Failed to load health for stats', e);
   }
-  
-  toggle.addEventListener('click', function(e) {
-    e.stopPropagation();
-    if (sidebar.classList.contains('mobile-open')) {
-      closeMobileMenu();
-    } else {
-      openMobileMenu();
-    }
-  });
-  
-  overlay.addEventListener('click', closeMobileMenu);
-  
-  // Close menu when clicking nav buttons
-  var navBtns = sidebar.querySelectorAll('.nav-btn');
-  navBtns.forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      closeMobileMenu();
-    });
-  });
-  
-  // Close menu on escape key
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && sidebar.classList.contains('mobile-open')) {
-      closeMobileMenu();
-    }
-  });
-  
-  // Hide toggle on desktop
-  function checkWidth() {
-    if (window.innerWidth > 700) {
-      closeMobileMenu();
-      toggle.style.display = 'none';
-    } else {
-      toggle.style.display = 'flex';
-    }
-  }
-  
-  window.addEventListener('resize', checkWidth);
-  checkWidth();
-})();
+}
 
 // ── Init ───────────────────────────────────────────────────────────
 
 async function init() {
   await loadDashboardConfig();
   await loadAgentRegistry();
-  loadDashboard();
+  // loadDashboard(); // removed
+  loadKanban();
+  updateTopBarStats();
+  setInterval(updateTopBarStats, 30000); // refresh every 30s
   try {
     var res = await fetch(API + '/stats');
     var stats = await res.json();
-    document.getElementById('version-badge').textContent = stats.version;
+    var vb = document.getElementById('version-badge');
+    if (vb) vb.textContent = stats.version;
   } catch (e) {}
 }
 

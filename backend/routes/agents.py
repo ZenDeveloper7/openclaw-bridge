@@ -200,6 +200,9 @@ def setup_agents_routes(app):
                 # Get model from config
                 model = cfg.get("model", "unknown")
                 
+                updated_at = sess.get("updatedAt", 0)
+                # Working: updated in last 30 seconds
+                is_working = (now_ms - updated_at) < 30000 if updated_at else False
                 agents.append({
                     "id": agent_id,
                     "name": cfg.get("name", agent_id),
@@ -209,8 +212,9 @@ def setup_agents_routes(app):
                     "capabilities": [],
                     "startedAt": None,
                     "messageCount": 0,
-                    "updatedAt": sess.get("updatedAt"),
+                    "updatedAt": updated_at,
                     "ageMs": sess.get("ageMs", 0),
+                    "working": is_working,
                     "lastMessage": _get_last_assistant_message_from_file(sess.get("sessionFile")) or ""
                 })
             
@@ -270,6 +274,8 @@ def setup_agents_routes(app):
                 # Check if "thinking" (updated within last 30 seconds)
                 updated_at = sess.get("updatedAt", 0)
                 is_thinking = (now_ms - updated_at) < thinking_threshold if updated_at else False
+                # Working: updated in last 30 seconds
+                is_working = (now_ms - updated_at) < 30000 if updated_at else False
                 
                 result.append({
                     "id": session_id,
